@@ -1,0 +1,146 @@
+function q = back_kol_solve(x_s, y_s, nx_s, ny_s, hx, hy, sigma,...
+    b1_fun, b2_fun, in_a_fun, in_b_fun, a_value, b_value, cst)
+
+
+%% Documentation.
+
+% This function is to solve the equation Lq(x) = cst,
+% where x in R^2, L is the infinitesimal generator in diffusion equation 
+% (as specified in script ../main.m, and cst is some constant. 
+%
+% The Dirichlet boundary condition is applied to Set A and B: q(x) =
+% a_value when x in Set A and q(x) = b_value when x in Set B.
+% 
+% The Riemann boundary condition is applied to the boudary of space 
+%       W = [x_min, x_max]*[y_min, y_max].
+
+% Input:
+% 1. x_s: the truncated (shorted) mesh grids on x-axis. 
+%   Here, truncated means the two boundary points x_min, x_max 
+%   are excluded. y_s refers to the truncated mesh grids in y-axis.
+% 2. nx_s (ny_s): the number of truncated mesh grids on x-axis (or y-axis).
+%   That is to say, nx_s = length(x_s), ny_s = length(y_s).
+% 3. hx, hy are mesh size in x (or y) axis. Here x_s (y_s) use 
+%   uniform mesh grids, so 
+%       hx is any element in diff(x_s); 
+%       hy is any element in diff(y_s).
+% 4. sigma: the noise intensity in diffusion equation.
+% 5. b1_fun and b2_fun are two functions passed as parameters: they return
+%   components of drift term b(x).
+% 6. in_a_fun and in_b_fun are two functions passed as parameters: they
+%   are basically indicator functions specifying whether a certain point
+%   x in W is in Set A (or B) or not.
+% 7. a_value and b_value: see text before.
+% 8. cst: see text before.
+
+% Output: q is the function in Lq(x) = cst to be determined.
+
+% Caution: the indexing rule is that for a point (x_i, y_j), 
+%   its corresponding q value q(x_i, y_j) is stored in vector q with
+%   index (j-1)*nx_s+i. See line 55.
+
+%% Implementation.
+
+idx_i = zeros(1, 5*nx_s*ny_s); % store information related to row.
+idx_j = zeros(1, 5*nx_s*ny_s); % col in sparse matrix.
+idx_k = zeros(1, 5*nx_s*ny_s); % value in sprase matrix.
+idx_count = 0; % count the number of parameter sets for sparse matrix.
+in_a_count = 0; % count the number of points in Set A.
+in_b_count = 0; % count the number of points in Set B.
+b_vec = cst*ones(nx_s*ny_s,1); % the coefficient vector: A_mat q = b_vec.
+
+for i = 1:nx_s
+    for j = 1:ny_s
+        
+        idx = (j-1)*nx_s+i;
+        itself_repo = 0;
+        
+        if in_a_fun([x_s(i),y_s(j)]) == 1
+            idx_count = idx_count+1;
+            idx_i(idx_count) = idx;
+            idx_j(idx_count) = idx;
+            idx_k(idx_count) = 1;
+            b_vec(idx) = a_value;
+            in_a_count = in_a_count+1;
+        elseif in_b_fun([x_s(i),y_s(j)]) == 1
+            idx_count = idx_count+1;
+            idx_i(idx_count) = idx;
+            idx_j(idx_count) = idx;
+            idx_k(idx_count) = 1;
+            b_vec(idx) = b_value;
+            in_b_count = in_b_count+1;
+        else
+            %update right
+            if i~=nx_s
+                idx_count = idx_count+1;
+                idx_i(idx_count) = idx;
+                idx_j(idx_count) = idx+1;
+                idx_k(idx_count) = b1_fun(x_s(i),y_s(j))/(2*hx)+...
+                    sigma^2/hx^2;
+            else
+                itself_repo = itself_repo+...
+                    b1_fun(x_s(i),y_s(j))/(2*hx)+sigma^2/hx^2;
+            end
+            %update left
+            if i~=1
+                idx_count = idx_count+1;
+                idx_i(idx_count) = idx;
+                idx_j(idx_count) = idx-1;
+                idx_k(idx_count) = -b1_fun(x_s(i),y_s(j))/(2*hx)+...
+                    sigma^2/hx^2;
+            else
+               itself_repo = itself_repo+...
+                   -b1_fun(x_s(i),y_s(j))/(2*hx)+sigma^2/hx^2;
+            end
+            %update up
+            if j~=ny_s
+                idx_count = idx_count+1;
+                idx_i(idx_count) = idx;
+                idx_j(idx_count) = idx+nx_s;
+                idx_k(idx_count) = b2_fun(x_s(i), y_s(j))/(2*hy)+...
+                    sigma^2/hy^2;
+            else
+                itself_repo = itself_repo+...
+                    b2_fun(x_s(i), y_s(j))/(2*hy)+sigma^2/hy^2;
+            end
+            %update down
+            if j~=1
+                idx_count = idx_count+1;
+                idx_i(idx_count) = idx;
+                idx_j(idx_count) = idx-nx_s;
+                idx_k(idx_count) = -b2_fun(x_s(i), y_s(j))/(2*hy)+...
+                    sigma^2/hy^2;
+            else
+                itself_repo = itself_repo+...
+                    -b2_fun(x_s(i), y_s(j))/(2*hy)+sigma^2/hy^2;
+            end
+            
+            %update itself
+            idx_count = idx_count+1;
+            idx_i(idx_count) = idx;
+            idx_j(idx_count) = idx;
+            idx_k(idx_count) = sigma^2*(-2/hx^2-2/hy^2)+itself_repo;
+        end       
+    end
+end
+mark_nonzeros = idx_i
+A_mat = sparse(idx_i(1:idx_count), idx_j(1:idx_count), ...
+    idx_k(1:idx_count));
+q = A_mat\b_vec;
+
+%% Data visualization.
+% [X, Y] = meshgrid(x_s, y_s);
+% Y = flipud(Y);
+% 
+% Q = rot90(reshape(q, nx_s, ny_s));
+% %index = find(Q == 0);
+% new_Q = Q;
+% %new_Q(index) = ones(size(index));
+% para = linspace(0,pi,20);
+% para = max(q)*(cos(para)+1)/2;
+% figure, contourf(X, Y, new_Q, para), colormap(jet), colorbar;
+% set(gca,'FontSize',20);
+% xlabel('x1');
+% ylabel('x2');
+% title(['sigma = ',num2str(sigma)]);
+end

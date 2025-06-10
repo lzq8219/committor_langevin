@@ -1,0 +1,13 @@
+
+plumed:2654 terminated with signal 6 at PC=7f1865e899fc SP=7ffde863f720.  Backtrace:
+/lib/x86_64-linux-gnu/libc.so.6(pthread_kill+0x12c)[0x7f1865e899fc]
+/lib/x86_64-linux-gnu/libc.so.6(raise+0x16)[0x7f1865e35476]
+/lib/x86_64-linux-gnu/libc.so.6(abort+0xd3)[0x7f1865e1b7f3]
+/lib/x86_64-linux-gnu/libstdc++.so.6(+0xa2b9e)[0x7f18660deb9e]
+/lib/x86_64-linux-gnu/libstdc++.so.6(+0xae20c)[0x7f18660ea20c]
+/lib/x86_64-linux-gnu/libstdc++.so.6(+0xae277)[0x7f18660ea277]
+/lib/x86_64-linux-gnu/libstdc++.so.6(__cxa_rethrow+0x4b)[0x7f18660ea52b]
+plumed(+0x7b28)[0x5562e2e94b28]
+/lib/x86_64-linux-gnu/libc.so.6(+0x29d90)[0x7f1865e1cd90]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x80)[0x7f1865e1ce40]
+plumed(+0x7d45)[0x5562e2e94d45]
