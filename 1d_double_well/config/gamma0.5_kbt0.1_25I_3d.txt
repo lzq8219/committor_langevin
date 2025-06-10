@@ -1,0 +1,2 @@
+Layer size: 6, 8, 8, 1
+Activation: sigmoid

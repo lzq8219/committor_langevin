@@ -1,0 +1,14 @@
+nstep             500000
+tstep             0.005
+temperature       15
+friction          10
+random_seed       4525
+dimension         2
+replicas          1
+basis_functions_1 BF_POWERS ORDER=2 MINIMUM=-3.0 MAXIMUM=+3.0
+basis_functions_2 BF_POWERS ORDER=2 MINIMUM=-3.0 MAXIMUM=+3.0
+initial_position   0.6235, 0.0281
+output_potential        out/potential.data
+output_potential_grid   100
+output_histogram       out/histogram.data
+output_coeffs     out/222.dat
