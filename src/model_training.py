@@ -52,9 +52,9 @@ def weight_update(model,data,w,dU,batchsize,args,device,threshold = 1):
     batches = split(dataset,batchsize,shuffle=False)
     pinn_l_s = []
     for d, du in batches:
-        d = d.to(device)
+        #d = d.to(device)
         d.requires_grad_(True)
-        du = du.to(device)
+        #du = du.to(device)
         pinn_l = pinn_loss(model(d),d,du,args)
         pinn_l_s.append(pinn_l.to('cpu').detach().numpy())
     pinn_l_s = np.concatenate(pinn_l_s,axis=0)**2
@@ -189,10 +189,10 @@ def train_step(model,model_o, dataset, batchsize, data_b, label_b, alpha_b,
         for d,w, dU in dataloader:
 
             # torch.cuda.empty_cache()
-            d=d.to(device)
+            #d=d.to(device)
             d.requires_grad_(True)
-            dU = dU.to(device)
-            w = w.to(device)
+            #dU = dU.to(device)
+            #w = w.to(device)
             # rq=rq.to(device)
             # rdq=rdq.to(device)
             #print(d.shape,dU.shape)
@@ -279,6 +279,7 @@ def train_resample(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
     data_b = data_b.to(device)
     data=data.to(device)
     dU = dU.to(device)
+    
     
     loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
     for t in range(num_tsteps):
