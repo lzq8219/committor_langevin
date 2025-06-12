@@ -5,7 +5,7 @@ from muller_potential import MullerPotential
 import matplotlib.pyplot as plt
 import torch.optim as optim
 from langevin_simulation import ul_simulation
-from hist import hist_reweight
+from committor_langevin.src.hist import hist_reweight
 
 
 def grad(x0: np.ndarray, model, device, tempered):

@@ -196,15 +196,14 @@ def train_step(model,model_o, dataset, batchsize, data_b, label_b, alpha_b,
             # rq=rq.to(device)
             # rdq=rdq.to(device)
             #print(d.shape,dU.shape)
-            y = model(d)
-            yy = model_o(d)
             
-
+            yy = model_o(d)
             # with torch.no_grad():
             #    print(torch.sum((y-yy)**2))
             res_q, res_dq, res_dqx = build_rightside(yy,d,dU,args)
             opt.zero_grad()
             # y = model(d)
+            y = model(d)
             y_b = model(data_b)
 
             loss = loss_fn(y, d,w, res_q, res_dq, res_dqx, args)
@@ -278,13 +277,16 @@ def train_resample(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
     #dU = dU.to(device)
     label_b = label_b.to(device)
     data_b = data_b.to(device)
-    data = data.detach()
+    data=data.to(device)
+    dU = dU.to(device)
     
     loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
     for t in range(num_tsteps):
         print(f"itr{t}: Building dataset!")
+        
         data[:,xdim:xdim+vdim] = torch.randn(size=(data.shape[0],vdim),dtype=torch.float32,device=device) * np.sqrt(args['kbt'])
         model_o = copy.deepcopy(model)
+        
         # y = model(data)
         #res_q, res_dq, res_dqx = build_rightside(y, data, dU, args)
         # dataset = TensorDataset(data.to('cpu'),res_q.to('cpu'),res_dq.to('cpu'))
