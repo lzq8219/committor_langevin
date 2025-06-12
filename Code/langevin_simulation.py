@@ -1,7 +1,7 @@
 import numpy as np
 from muller_potential import MullerPotential
 import matplotlib.pyplot as plt
-from hist import hist_reweight
+from committor_langevin.src.hist import hist_reweight
 import numba
 
 

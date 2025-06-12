@@ -5,7 +5,7 @@ import numpy as np
 from muller_potential import MullerPotential
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-from hist import hist_reweight
+from committor_langevin.src.hist import hist_reweight
 from utils import read_COLVAR
 
 # Define a simple neural network to represent the function v
