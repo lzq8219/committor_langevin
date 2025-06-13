@@ -47,14 +47,14 @@ def loss_fn(outputs, data,w, res_q, res_dq, res_dqx, args):
 
 b_lossfn = torch.nn.MSELoss()
 
-def weight_update(model,data,w,dU,batchsize,args,device,threshold = 1,):
+def weight_update(model,data,w,dU,batchsize,args,device,threshold = 1):
     dataset = [data,dU]
     batches = split(dataset,batchsize,shuffle=False)
     pinn_l_s = []
     for d, du in batches:
-        d = d.to(device)
+        #d = d.to(device)
         d.requires_grad_(True)
-        du = du.to(device)
+        #du = du.to(device)
         pinn_l = pinn_loss(model(d),d,du,args)
         pinn_l_s.append(pinn_l.to('cpu').detach().numpy())
     pinn_l_s = np.concatenate(pinn_l_s,axis=0)**2
@@ -67,6 +67,28 @@ def weight_update(model,data,w,dU,batchsize,args,device,threshold = 1,):
         w[pinn_l_s>mean] +=wmax
         w = w/torch.sum(w)
     # print(w)
+
+def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,threshold = 1,beta = 1,N = 10,alpha_beta = 1):
+    sum = torch.zeros(size=(data.shape[0],1),dtype=torch.float32,device=device)
+    for i in range(N):
+        data[:,xdim:xdim+vdim] = torch.randn(size=(data.shape[0],vdim),dtype=torch.float32,device=device) * np.sqrt(args['kbt'])
+        dataset = [data,dU]
+        batches = split(dataset,batchsize,shuffle=False)
+        k=0
+        for d, du in batches:
+            d = d.to(device)
+            d.requires_grad_(True)
+            du = du.to(device)
+            y = model(d)
+            gradients = torch.autograd.grad(outputs=y, inputs=d,
+                                            grad_outputs=torch.ones_like(y),
+                                            create_graph=False, retain_graph=False)[0]
+            sum[k*batchsize:k*batchsize+d.shape[0]]+=torch.sum(gradients**2,dim=1,keepdim=True)
+    sum = (sum / N)**beta
+    sum = sum/torch.sum(sum)
+    # print(pinn_l_s.shape)
+    w = alpha_beta*sum + (1-alpha_beta)*torch.ones(size=(data.shape[0],1),dtype=torch.float32,device=device)/data.shape[0]
+    return w
 
 def build_rightside(outputs, data, dU, args):
 
@@ -93,7 +115,7 @@ def build_rightside(outputs, data, dU, args):
         res_q = -lam * outputs - \
             torch.sum((data[:, ndim:] * grad_x - dU * grad_v),
                       dim=1, keepdim=True)
-        res_dq = (gamma - omega) * grad_v
+        res_dq = (gamma - omega) * grad_v*kbt
         res_dqx = -eta * grad_x
 
     return res_q, res_dq, res_dqx
@@ -167,22 +189,21 @@ def train_step(model,model_o, dataset, batchsize, data_b, label_b, alpha_b,
         for d,w, dU in dataloader:
 
             # torch.cuda.empty_cache()
-            d=d.to(device)
+            #d=d.to(device)
             d.requires_grad_(True)
-            dU = dU.to(device)
-            w = w.to(device)
+            #dU = dU.to(device)
+            #w = w.to(device)
             # rq=rq.to(device)
             # rdq=rdq.to(device)
             #print(d.shape,dU.shape)
-            y = model(d)
-            yy = model_o(d)
             
-
+            yy = model_o(d)
             # with torch.no_grad():
             #    print(torch.sum((y-yy)**2))
             res_q, res_dq, res_dqx = build_rightside(yy,d,dU,args)
             opt.zero_grad()
             # y = model(d)
+            y = model(d)
             y_b = model(data_b)
 
             loss = loss_fn(y, d,w, res_q, res_dq, res_dqx, args)
@@ -241,6 +262,46 @@ def train(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
         pinn_loss_list += pl
         if adaptive:
             weight_update(model,data,w,dU,batchsize,args,device,threshold=threshold)
+
+        torch.cuda.empty_cache()
+        print(f"itr{t}: Training completed!")
+
+    return loss_list, b_loss_list, tot_loss_list, pinn_loss_list
+
+
+
+def train_resample(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
+          alpha_b, lr, num_tsteps, num_epoches, device, args,xdim,vdim, checkpoint=10,threshold=1,alpha_l2=0,adaptive=True,beta=1,alpha_beta=1):
+    torch.cuda.empty_cache()
+    #data = data.to(device)
+    #dU = dU.to(device)
+    label_b = label_b.to(device)
+    data_b = data_b.to(device)
+    data=data.to(device)
+    dU = dU.to(device)
+    
+    
+    loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
+    for t in range(num_tsteps):
+        print(f"itr{t}: Building dataset!")
+        
+        data[:,xdim:xdim+vdim] = torch.randn(size=(data.shape[0],vdim),dtype=torch.float32,device=device) * np.sqrt(args['kbt'])
+        model_o = copy.deepcopy(model)
+        
+        # y = model(data)
+        #res_q, res_dq, res_dqx = build_rightside(y, data, dU, args)
+        # dataset = TensorDataset(data.to('cpu'),res_q.to('cpu'),res_dq.to('cpu'))
+        opt = optim.Adam(model.parameters(), lr=lr)
+        # dataloader = (data,res_q,res_dq)
+        print(f"itr{t}: Training!")
+        ll, bl, tl, pl = train_step(model,model_o, [data,w,dU], batchsize,
+                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint,alpha_l2=alpha_l2)
+        loss_list += ll
+        b_loss_list += bl
+        tot_loss_list += tl
+        pinn_loss_list += pl
+        if adaptive:
+            w=weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,threshold=threshold,beta=beta,alpha_beta=alpha_beta)
 
         torch.cuda.empty_cache()
         print(f"itr{t}: Training completed!")
