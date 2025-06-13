@@ -43,7 +43,7 @@ def ul_simulation(grad_func, xdim, Nx, kbt, xinit=None, vinit=None,
 
         v = v - (grad_func(x0) + gamma * v) * \
             tstep + sigma * noise
-        
+
         x0 = xt
         if i % stride == 0:
             idx = int(i / stride)
@@ -76,21 +76,20 @@ def ul_simulation_target(grad_func, xdim, Nx, kbt, c_a, c_b, xinit=None, vinit=N
     sigma = np.sqrt(2 * gamma * kbt * tstep)
     mask = np.zeros(shape=Nx, dtype=np.bool_)
     arrival = np.zeros(shape=Nx)
+    f = 1 - np.exp(-gamma * tstep)
     for i in range(nstep):
         noise = normal(xdim * Nx).reshape(x0.shape)
 
-        xt = x0 + v * tstep
-        
-        xt[xt[:,0]<-2,0] = -2
-        xt[xt[:,1]<-1,1] = -1
-        xt[xt[:,0]>2,0] = 2
-        xt[xt[:,1]>2.5,1] = 2.5
+        v = v - grad_func(x0) * tstep
+        dv = -f * v + np.sqrt(f * (2 - f) * kbt) * noise
+        xt = x0 + (v + dv / 2) * tstep
+        v = v + dv
 
-        v = v - (grad_func(x0) + gamma * v) * \
-            tstep + sigma * noise
-        
-        
-        
+        xt[xt[:, 0] < -2, 0] = -2
+        xt[xt[:, 1] < -1, 1] = -1
+        xt[xt[:, 0] > 2, 0] = 2
+        xt[xt[:, 1] > 2.5, 1] = 2.5
+
         x0 = xt
         la = np.sum((x0 - c_a)**2, axis=1) < 0.2**2
         lb = np.sum((x0 - c_b)**2, axis=1) < 0.2**2
@@ -180,7 +179,7 @@ if __name__ == '__main__':
     dy = 0.05
     Nx = int((xmax - xmin) / dx)
     Ny = int((ymax - ymin) / dy)
-    kbt = 10
+    kbt = 5
     gamma = 1
 
     Ncol = Nx + 1
@@ -204,6 +203,7 @@ if __name__ == '__main__':
     points = np.array([X.reshape(-1), Y.reshape(-1)]).T.astype(np.float64)
     U = muller.potential(points)
     print(np.max(U))
+    print(gamma)
     points = points[U < 100]
     v_sample = 25
 
@@ -214,8 +214,10 @@ if __name__ == '__main__':
     N = 100
     stride = 10
     arr = np.zeros(x0.shape[0])
-
-    vs = np.loadtxt(f'muller_potential/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt')
+    # vs = np.random.normal(size=(v_sample, 2)) * np.sqrt(kbt)
+    # np.savetxt(f'muller_potential/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt', vs)
+    vs = np.loadtxt(
+        f'muller_potential/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt')
 
     for i in range(v_sample):
         st = time.time()
@@ -253,10 +255,14 @@ if __name__ == '__main__':
         arr = arr / N
         arr = arr.reshape((points.shape[0], 1))
         result = np.concatenate((points, arr), axis=1)
-        np.savetxt(f'muller_potential/model/simulation_{kbt}/simulation_kbt{kbt}_gamma{gamma}_{i}_2.txt', result)
+        np.savetxt(
+            f'muller_potential/model/simulation_{kbt}/simulation_kbt{kbt}_gamma{gamma}_{i}_2.txt',
+            result)
         tt = time.time()
         print(f'Using time {tt-st}!')
     # np.savetxt('model/simulation_kbt.1_gamma10.txt', xs)
     # plt.scatter(xs[:, 0], xs[:, 1], alpha=0.05)
     # plt.show()
-    np.savetxt(f'muller_potential/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt', vs)
+    np.savetxt(
+        f'muller_potential/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt',
+        vs)
