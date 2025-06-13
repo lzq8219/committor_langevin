@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numba
 import time
 from langevin_simulation import ul_simulation
-from hist import hist_reweight
+from committor_langevin.src.hist import hist_reweight
 
 muller = MullerPotential()
 grad_func = muller.gradient
