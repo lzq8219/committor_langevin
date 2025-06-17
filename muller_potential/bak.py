@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
-from nn import FunctionModel, save_model, load_model
+from committor_langevin.muller_potential.training import FunctionModel, save_model, load_model
 import copy
 import matplotlib.pyplot as plt
 from muller_potential import MullerPotential
