@@ -117,24 +117,27 @@ def ul_simulation_target_1(grad_func, xdim, Nx, kbt, c_a, c_b, xinit=None, vinit
     sigma = np.sqrt(2 * gamma * kbt * tstep)
     mask = np.zeros(shape=Nx, dtype=np.bool_)
     arrival = np.zeros(shape=Nx)
-
+    f = 1 - np.exp(-gamma * tstep)
     for i in range(nstep):
         NNx = x0.shape[0]
         noise = normal(xdim * NNx).reshape(x0.shape)
 
-        v = v -grad_fn(x0)*tstep/2
-        xt = x0 + v * tstep/2
-        v = v - gamma*v*tstep+sigma*noise
-        xt = xt + v*tstep/2
-        v = v -grad_fn(xt)*tstep/2
+        v = v - grad_func(x0) * tstep
+        dv = -f * v + np.sqrt(f * (2 - f) * kbt) * noise
+        xt = x0 + (v + dv / 2) * tstep
+        v = v + dv
 
         # v = v - (grad_func(x0) + gamma * v) * \
         #    tstep + sigma * noise
 
-        xt[xt[:, 0] < -2.5, 0] = -2.5
-        xt[xt[:, 1] < -1.5, 1] = -1.5
-        xt[xt[:, 0] > 2.5, 0] = 2.5
-        xt[xt[:, 1] > 2.5, 1] = 2.5
+        v[xt[:, 0] < -2.1, 0] = 0
+        v[xt[:, 1] < -1.1, 1] = 0
+        v[xt[:, 0] > 2.1, 0] = 0
+        v[xt[:, 1] > 2.1, 1] = 0
+        xt[xt[:, 0] < -2.1, 0] = -2.1
+        xt[xt[:, 1] < -1.1, 1] = -1.1
+        xt[xt[:, 0] > 2.1, 0] = 2.1
+        xt[xt[:, 1] > 2.1, 1] = 2.1
 
         x0 = xt
         '''
@@ -238,7 +241,8 @@ if __name__ == '__main__':
     Nx = int((xmax - xmin) / dx)
     Ny = int((ymax - ymin) / dy)
     kbt = .5
-    gamma = .1
+    gamma = 25
+    print(gamma)
 
     Ncol = Nx + 1
     Nrow = Ny + 1
@@ -260,17 +264,21 @@ if __name__ == '__main__':
 
     points = np.array([X.reshape(-1), Y.reshape(-1)]).T.astype(np.float64)
     U = TWP.potential(points)
-    v_sample = 2
+    v_sample = 25
 
     x0 = points
     c_a = TWP.c_a()
     c_b = TWP.c_b()
     T = 10**7
-    N = 10
+    N = 100
     stride = 10
     arr = np.zeros(x0.shape[0])
 
-    vs = np.zeros(shape=(v_sample, 2))
+
+    #vs = np.random.normal(size=(v_sample, 2)) * np.sqrt(kbt)
+    #np.savetxt(f'2d_triple_well/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt', vs)
+    vs = np.loadtxt(
+        f'2d_triple_well/model/simulation_{kbt}/simulation_vconfig_kbt{kbt}.txt')
 
     for i in range(v_sample):
         st = time.time()
@@ -290,7 +298,7 @@ if __name__ == '__main__':
                                           xinit=x0,
                                           vinit=vinit,
                                           gamma=gamma,
-                                          tstep=5e-3,
+                                          tstep=5e-4,
                                           nstep=T,
                                           random_seed=None)
             '''
@@ -308,10 +316,9 @@ if __name__ == '__main__':
         arr = arr / N
         arr = arr.reshape((points.shape[0], 1))
         result = np.concatenate((points, arr), axis=1)
-        np.savetxt(f'model/simulation_kbt{kbt}_gamma{gamma}_{i}.txt', result)
+        np.savetxt(f'2d_triple_well/model/simulation_kbt{kbt}_gamma{gamma}_{i}.txt', result)
         tt = time.time()
         print(f'Using time {tt-st}!')
     # np.savetxt('model/simulation_kbt.1_gamma10.txt', xs)
     # plt.scatter(xs[:, 0], xs[:, 1], alpha=0.05)
     # plt.show()
-    np.savetxt(f'model/simulation_vconfig_kbt{kbt}_gamma{gamma}_1.txt', vs)
