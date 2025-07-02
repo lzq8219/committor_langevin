@@ -31,8 +31,8 @@ import logging
 
 
 ndim = 2
-gamma = 1
-kbt = 10
+gamma = 25
+kbt = 5
 lam = 10
 eta = 10
 omega = gamma
@@ -247,20 +247,20 @@ save_model(q,model_file,config_file)
 
 q.to(device)
 data = data.to(device)
-batch_size = 2**22
+batch_size = 2**26
 #eta = 10
 lr = 5e-5
 #eta = 1
 #lam = 1
 #kbt = .5
 subtrain_idx += 1
-NNsteps = Nsteps 
+NNsteps = Nsteps *2
 NNt = Nt * 5 
 adaptive = True
-beta = 0.8
-alpha_beta = 0.9
-args['lam'] = 1
-args['eta'] = 1
+beta = 1
+alpha_beta = 0.95
+args['lam'] = 2
+args['eta'] = 2
 
 logging.info(f'Subtraining index: {subtrain_idx}')
 logging.info(f'Batch size: {batch_size}')
@@ -362,14 +362,13 @@ batch_size = 2**26
 #eta = 10
 lr = 1e-5
 subtrain_idx += 1
-subtrain_idx += 1
 NNsteps = Nsteps * 3
 NNt = Nt * 5 
 adaptive = True
-beta = 0.8
-alpha_beta = 0.9
-args['lam'] = 1
-args['eta'] = 1
+beta = 1
+alpha_beta = 0.99
+args['lam'] = 2
+args['eta'] = 2
 
 logging.info(f'Subtraining index: {subtrain_idx}')
 logging.info(f'Batch size: {batch_size}')
@@ -571,7 +570,7 @@ y = q(ddd)
 # In[ ]:
 
 
-contour = plt.contour(
+plt.contour(
         X,
         Y,
         UU, levels=20,
