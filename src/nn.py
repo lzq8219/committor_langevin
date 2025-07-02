@@ -49,6 +49,42 @@ class GaussianCDFActivation(nn.Module):
         return (1 + torch.erf(x)) / 2
 
 
+class simple_function_model(nn.Module):
+    def __init__(self, input_dim, order=3, activation='linear'):
+        super(simple_function_model, self).__init__()
+        self.layers = nn.ModuleList()
+        self.order = order
+        for i in range(order):
+            self.layers.append(nn.Linear(input_dim, 1))
+        self.activation = activation
+
+        if activation == 'sigmoid':
+            self.layers.append(nn.Sigmoid())
+            self.act_func = nn.Sigmoid()
+        elif activation == 'tanh':
+            self.layers.append(nn.Tanh())
+            self.act_func = nn.Tanh()
+        elif activation == 'relu':
+            self.layers.append(nn.ReLU())
+            self.act_func = nn.ReLU()
+        elif activation == 'softplus':
+            self.layers.append(nn.Softplus())
+            self.act_func = nn.Softplus()
+        elif activation == 'linear':
+            self.act_func = nn.Identity()
+            pass
+        else:
+            print('Warning! Activation function is unavailable! Using Linear by default!')
+
+    def forward(self, x: torch.float32):
+        y = 0
+        for i in range(self.order):
+            layer = self.layers[i]
+            y += layer(x)**i
+        y = self.act_func(y)
+        return y
+
+
 class FunctionModel(nn.Module):
     def __init__(self, layer_sizes, activation='linear'):
         super(FunctionModel, self).__init__()
