@@ -85,14 +85,14 @@ def ul_simulation_target(grad_func, xdim, Nx, kbt, c_a, c_b, xinit=None, vinit=N
         xt = x0 + (v + dv / 2) * tstep
         v = v + dv
 
-        v[xt[:, 0] < -2, 0] = 0
-        v[xt[:, 1] < -1, 1] = 0
-        v[xt[:, 0] > 2, 0] = 0
-        v[xt[:, 1] > 2.5, 1] = 0
-        xt[xt[:, 0] < -2, 0] = -2
-        xt[xt[:, 1] < -1, 1] = -1
-        xt[xt[:, 0] > 2, 0] = 2
-        xt[xt[:, 1] > 2.5, 1] = 2.5
+        v[xt[:, 0] < -1.5, 0] = 0
+        v[xt[:, 1] < -0.2, 1] = 0
+        v[xt[:, 0] > 1.2, 0] = 0
+        v[xt[:, 1] > 2, 1] = 0
+        xt[xt[:, 0] < -1.5, 0] = -1.5
+        xt[xt[:, 1] < -0.2, 1] = -0.2
+        xt[xt[:, 0] > 1.2, 0] = 1.2
+        xt[xt[:, 1] > 2, 1] = 2
 
         x0 = xt
         la = np.sum((x0 - c_a)**2, axis=1) < 0.2**2
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     Nx = int((xmax - xmin) / dx)
     Ny = int((ymax - ymin) / dy)
     kbt = 5
-    gamma = 5
+    gamma = 1
 
     Ncol = Nx + 1
     Nrow = Ny + 1
@@ -214,7 +214,7 @@ if __name__ == '__main__':
     x0 = points
     c_a = muller.c_a()
     c_b = muller.c_b()
-    T = 10**7
+    T = 10**10
     N = 100
     stride = 10
     arr = np.zeros(x0.shape[0])
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                                         xinit=x0,
                                         vinit=vinit,
                                         gamma=gamma,
-                                        tstep=2e-4,
+                                        tstep=2e-5,
                                         nstep=T,
                                         random_seed=None)
             '''
