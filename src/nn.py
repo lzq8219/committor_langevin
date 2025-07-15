@@ -145,7 +145,7 @@ def save_model(model: FunctionModel, model_path, config_path):
 # Load the model
 
 
-def load_model(model_path, config_path):
+def load_model(model_path, config_path, device='cpu'):
     print(f"Configuration loaded from {config_path}")
     with open(config_path, 'r') as file:
         for line in file:
@@ -157,7 +157,7 @@ def load_model(model_path, config_path):
                 # Extract the string content
                 activation = line[len("Activation: "):].strip()
     model = FunctionModel(layer_sizes, activation)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     print(f"Model loaded from {model_path}")
     return model
 
