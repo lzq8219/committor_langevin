@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from muller_potential import MullerPotential
 
 
+
 def loss_fn(outputs, data,w, res_q, res_dq, res_dqx, args):
 
     ndim = args['ndim']
@@ -71,6 +72,8 @@ def weight_update(model,data,w,dU,batchsize,args,device,threshold = 1):
 def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N = 10,pinn_weight = 0.9, grad_weight = 0.05):
     sum = torch.zeros(size=(data.shape[0],1),dtype=torch.float32,device=device)
     sum_pinn = torch.zeros(size=(data.shape[0],1),dtype=torch.float32,device=device)
+    for param in model.parameters():
+        param.requires_grad = False
     for i in range(N):
         data[:,xdim:xdim+vdim] = torch.randn(size=(data.shape[0],vdim),dtype=torch.float32,device=device) * np.sqrt(args['kbt'])
         dataset = [data,dU]
@@ -87,7 +90,7 @@ def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N =
                                                 grad_outputs=torch.ones_like(y),
                                                 create_graph=False, retain_graph=True)[0]
                 sum[k*batchsize:k*batchsize+d.shape[0]]+=torch.sum(gradients**2,dim=1,keepdim=True)
-            sum_pinn[k*batchsize:k*batchsize+d.shape[0]] += pinn_loss(model(d),d,du,args)**2
+            sum_pinn[k*batchsize:k*batchsize+d.shape[0]] += pinn_loss(y,d,du,args)**2
     sum = (sum / N)**beta
     sum = sum/torch.sum(sum)
     # print(pinn_l_s.shape)
@@ -98,6 +101,8 @@ def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N =
     w[topk_indices,:] *= 2
     w[:] = w/ torch.sum(w)
     w[:] = pinn_weight*w + grad_weight*sum + (1-pinn_weight-grad_weight)*torch.ones(size=(data.shape[0],1),dtype=torch.float32,device=device)/data.shape[0]
+    for param in model.parameters():
+        param.requires_grad = True
     return w
 
 def build_rightside(outputs, data, dU, args):
@@ -132,6 +137,38 @@ def build_rightside(outputs, data, dU, args):
 
     return res_q, res_dq, res_dqx
 
+def pinn_loss_grad(grad_x,grad_v, data, dU, args, create_graph=False):
+    ndim = args['ndim']
+    kbt = args['kbt']
+    omega = args['omega']
+    lam = args['lam']
+    eta = args['eta']
+    gamma = args['gamma']
+
+    x = data[:, :ndim]
+    v = data[:, ndim:]
+
+    # \Delta q_v
+    lap_v = torch.zeros(
+        size=(
+            grad_x.shape[0],
+        ),
+        dtype=torch.float32,
+        device=grad_x.device)
+    for i in range(ndim):
+        temp = torch.autograd.grad(outputs=grad_v[:,i],
+                                   inputs=data,
+                                   grad_outputs=torch.ones_like(grad_v[:,
+                                                                     0]),
+                                   create_graph=create_graph,
+                                   retain_graph=True)[0]
+        # print(temp[:,ndim+i].shape,lap_v.shape)
+        lap_v += temp[:, ndim + i]
+    lap_v.unsqueeze_(dim=1)
+
+    ttt = torch.sum((data[:, ndim:] * grad_x - (dU + gamma * v)
+                     * grad_v), dim=1, keepdim=True)
+    return ttt + kbt * gamma * lap_v
 
 def pinn_loss(outputs, data, dU, args, create_graph=False):
     ndim = args['ndim']
@@ -152,27 +189,14 @@ def pinn_loss(outputs, data, dU, args, create_graph=False):
     v = data[:, ndim:]
 
     # \Delta q_v
-    lap_v = torch.zeros(
-        size=(
-            outputs.shape[0],
-        ),
-        dtype=torch.float32,
-        device=grad.device)
-    for i in range(ndim):
-        temp = torch.autograd.grad(outputs=grad[:,
-                                                ndim + i],
-                                   inputs=data,
-                                   grad_outputs=torch.ones_like(grad[:,
-                                                                     0]),
-                                   create_graph=create_graph,
-                                   retain_graph=True)[0]
-        # print(temp[:,ndim+i].shape,lap_v.shape)
-        lap_v += temp[:, ndim + i]
-    lap_v.unsqueeze_(dim=1)
+    if not create_graph:
+        #with torch.no_grad():
+        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph)
+    else:
+        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph)
+    
 
-    ttt = torch.sum((data[:, ndim:] * grad_x - (dU + gamma * v)
-                     * grad_v), dim=1, keepdim=True)
-    return ttt + kbt * gamma * lap_v
+
     
 
 
@@ -250,7 +274,7 @@ def train_step(model,model_o, dataset, batchsize, data_b, label_b, alpha_b,
 
 
 def train_pinn(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
-          alpha_b, lr, num_tsteps, num_epoches, device, args,xdim,vdim, checkpoint=10,threshold=1,alpha_l2=0,adaptive=True,beta=1,alpha_beta=1,valid_checkpoint = -1,valid_data = None,valid_w=None,valid_dU = None):
+          alpha_b, lr, num_tsteps, num_epoches, device, args,xdim,vdim, checkpoint=10,threshold=1,alpha_l2=0,adaptive=True,beta=1,alpha_beta=1,valid_checkpoint = -1,valid_data = None,valid_w=None,valid_dU = None,pinn_weight=0.9, grad_weight=0.05):
     torch.cuda.empty_cache()
     #data = data.to(device)
     #dU = dU.to(device)
@@ -304,8 +328,8 @@ def train_pinn(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
             b_loss_list.append(b_loss.item())
             tot_loss_list.append(tot_loss.item())
 
-        if adaptive and t % 5 == 0:
-            w[:] = weight_update_1(model, data, w, dU, batchsize, args, device, xdim, vdim, threshold=threshold, beta=beta, alpha_beta=alpha_beta)
+        if adaptive and t % 20 == 0:
+            w[:] = weight_update_1(model, data, w, dU, batchsize, args, device, xdim, vdim, beta=beta,pinn_weight=pinn_weight, grad_weight=grad_weight)
 
         if valid_checkpoint > 0 and t % valid_checkpoint == 0:
 
@@ -328,8 +352,10 @@ def train_pinn(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
         torch.cuda.empty_cache()
         print(f"itr{t}: Training completed!")
 
-
-    return loss_list, b_loss_list, tot_loss_list, valid_pinn_loss
+    if valid_checkpoint > 0:
+        return loss_list, b_loss_list, tot_loss_list, valid_pinn_loss
+    else:
+        return loss_list, b_loss_list, tot_loss_list
 
 
 
@@ -367,7 +393,7 @@ def train_resample(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
         b_loss_list += bl
         tot_loss_list += tl
         pinn_loss_list += pl
-        if adaptive and t % 5 == 0:
+        if adaptive and t % 20 == 0:
             w[:] = weight_update_1(model, data, w, dU, batchsize, args, device, xdim, vdim, beta=beta,pinn_weight=pinn_weight, grad_weight=grad_weight)
 
         if valid_checkpoint > 0 and t % valid_checkpoint == 0:

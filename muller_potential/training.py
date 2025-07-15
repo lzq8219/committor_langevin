@@ -20,6 +20,7 @@ import copy
 import matplotlib.pyplot as plt
 from muller_potential import MullerPotential
 from model_training import train_resample,pinn_loss,build_rightside
+from hist import hist_reweight
 
 import logging
 
@@ -31,7 +32,7 @@ import logging
 
 
 ndim = 2
-gamma = 25
+gamma = 5
 kbt = 5
 lam = 10
 eta = 10
@@ -66,7 +67,7 @@ NB = 5000
 
 batch_size = 2048 #not implement
 
-layers = [2*ndim,8,64,64,8,1]
+layers = [2*ndim,8,64,64,64,64,8,1]
 activ  = 'sigmoid'
 
 alpha_t = 1
@@ -155,6 +156,8 @@ lr = 1e-4
 adaptive = True
 beta = 0.8
 alpha_beta = 0.9
+pinn_weight = 0.9 
+grad_weight = 0.05
 # kbt = 1
 logging.info(f'Subtraining index: {subtrain_idx}')
 logging.info(f'Batch size: {batch_size}')
@@ -163,7 +166,31 @@ logging.info(f'Number of training steps: {Nsteps}')
 logging.info(f'Number of time steps: {Nt}')
 logging.info(f'Args: {args}')
 if adaptive:
-    logging.info(f'Adaptive sampling enabled, beta: {beta}, alpha_beta: {alpha_beta}')
+    logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
+
+loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
+                                          data=data,
+                                          w=w,
+                                          batchsize=batch_size,
+                                          data_b=data_b,
+                                          label_b=label_b,
+                                          alpha_b=100,
+                                          lr = 1e-3,
+                                          num_tsteps=Nt,
+                                          num_epoches=Nsteps,
+                                          device=device,
+                                          args=args,
+                                          xdim=ndim,
+                                          vdim=ndim,
+                                          dU=dU,
+                                          checkpoint=10,
+                                          adaptive=adaptive,
+                                          beta=beta,
+                                          alpha_beta = alpha_beta,
+                                          pinn_weight = pinn_weight, 
+                                          grad_weight = grad_weight,
+                                          alpha_l2 = 1e-10)
+
 
 loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           data=data,
@@ -183,7 +210,10 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           checkpoint=10,
                                           adaptive=adaptive,
                                           beta=beta,
-                                          alpha_beta = alpha_beta)
+                                          alpha_beta = alpha_beta,
+                                          pinn_weight = pinn_weight, 
+                                          grad_weight = grad_weight,
+                                          alpha_l2 = 1e-10)
 total_loss_list += loss_list
 total_b_loss_list += b_loss_list
 total_pinn_loss_list += pinn_loss_list
@@ -239,6 +269,27 @@ save_model(q,model_file,config_file)
 # In[15]:
 
 
+ngrid = 500
+grid = np.linspace(-2, 2, ngrid)
+y, x = np.meshgrid(grid, grid)
+y = y.flatten()
+x = x.flatten()
+g = np.array([x, y]).T
+h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
+h = h.flatten()
+cc = np.log(h[h > 0])
+thread = -20
+cc[cc < thread] = thread
+
+fig = plt.figure(figsize=(5, 5))
+plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
+            c=cc, cmap='turbo', s=1)
+plt.title('log potential of the sampling')
+plt.xlabel('x1')
+plt.ylabel('x2')
+plt.colorbar()
+plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
+
 
 
 
@@ -257,8 +308,10 @@ subtrain_idx += 1
 NNsteps = Nsteps *2
 NNt = Nt * 5 
 adaptive = True
-beta = 1
+beta = 0.8
 alpha_beta = 0.95
+pinn_weight = 0.9 
+grad_weight = 0.05
 args['lam'] = 2
 args['eta'] = 2
 
@@ -269,7 +322,7 @@ logging.info(f'Number of training steps: {NNsteps}')
 logging.info(f'Number of time steps: {NNt}')
 logging.info(f'Args: {args}')
 if adaptive:
-    logging.info(f'Adaptive sampling enabled, beta: {beta}, alpha_beta: {alpha_beta}')
+    logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
 loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           data=data,
                                           w=w,
@@ -288,7 +341,10 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           vdim=ndim,
                                           adaptive=True,
                                           beta=beta,
-                                          alpha_beta = alpha_beta)
+                                          alpha_beta = alpha_beta,
+                                          pinn_weight = pinn_weight, 
+                                          grad_weight = grad_weight,
+                                          alpha_l2 = 1e-10)
 
 
 # In[17]:
@@ -342,6 +398,20 @@ model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain
 config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.txt'
 save_model(q,model_file,config_file)
 
+h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
+h = h.flatten()
+cc = np.log(h[h > 0])
+thread = -20
+cc[cc < thread] = thread
+fig = plt.figure(figsize=(5, 5))
+plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
+            c=cc, cmap='turbo', s=1)
+plt.title('log potential of the sampling')
+plt.xlabel('x1')
+plt.ylabel('x2')
+plt.colorbar()
+plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
+
 # In[18]:
 
 
@@ -365,8 +435,10 @@ subtrain_idx += 1
 NNsteps = Nsteps * 3
 NNt = Nt * 5 
 adaptive = True
-beta = 1
+beta = 0.8
 alpha_beta = 0.99
+pinn_weight = 0.9 
+grad_weight = 0.05
 args['lam'] = 2
 args['eta'] = 2
 
@@ -377,7 +449,7 @@ logging.info(f'Number of training steps: {NNsteps}')
 logging.info(f'Number of time steps: {NNt}')
 logging.info(f'Args: {args}')
 if adaptive:
-    logging.info(f'Adaptive sampling enabled, beta: {beta}, alpha_beta: {alpha_beta}')
+    logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
 #eta = 1
 #lam = 1
 #kbt = .5
@@ -399,7 +471,10 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           vdim=ndim,
                                           adaptive=True,
                                           beta=beta,
-                                          alpha_beta = alpha_beta)
+                                          alpha_beta = alpha_beta,
+                                          pinn_weight = pinn_weight, 
+                                          grad_weight = grad_weight,
+                                          alpha_l2 = 1e-10)
 
 
 
@@ -501,6 +576,20 @@ model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}.pth'
 config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}.txt'
 save_model(q,model_file,config_file)
 
+fig = plt.figure(figsize=(5, 5))
+h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
+h = h.flatten()
+cc = np.log(h[h > 0])
+thread = -20
+cc[cc < thread] = thread
+plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
+            c=cc, cmap='turbo', s=1)
+plt.title('log potential of the sampling')
+plt.xlabel('x1')
+plt.ylabel('x2')
+plt.colorbar()
+plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
+
 # In[ ]:
 
 
@@ -569,7 +658,7 @@ y = q(ddd)
 
 # In[ ]:
 
-
+fig = plt.figure(figsize=(5, 5))
 plt.contour(
         X,
         Y,

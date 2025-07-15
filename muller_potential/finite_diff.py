@@ -15,7 +15,7 @@ ymin = -.2
 hx = (xmax - xmin) / N
 hy = (ymax - ymin) / N
 
-kbt = 10
+kbt = 5
 x = np.linspace(xmin, xmax, N + 1)
 y = np.linspace(ymin, ymax, N + 1)
 TWP = MullerPotential()
@@ -93,7 +93,7 @@ print(f"optimal functional value: {Iu}")
 
 
 out = np.concatenate((points, np.expand_dims(v, axis=0).T), axis=1)
-filename = f'.\\model\\fd_kbt{kbt}.txt'
+filename = f'./muller_potential/model/fd_kbt{kbt}.txt'
 np.savetxt(filename, out)
 
 # plt.streamplot(x1, y1, dxV, dyV)
