@@ -32,7 +32,7 @@ import logging
 
 
 ndim = 2
-gamma = 5
+gamma = 25
 kbt = 5
 lam = 10
 eta = 10
@@ -77,7 +77,7 @@ Nsteps = 20
 lr = 1e-3
 
 device = torch.device(
-                "cuda:7" if torch.cuda.is_available() else "cpu")
+                "cuda:1" if torch.cuda.is_available() else "cpu")
 
 
 xmin,xmax = -1.5,1.2
@@ -121,6 +121,14 @@ total_pinn_loss_list = []
 total_tot_loss_list = []
 
 q = FunctionModel(layer_sizes=layers,activation=activ)
+
+'''
+model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}.pth'
+config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}.txt'
+
+q = load_model(model_file,config_file)
+'''
+
 #model_file = f'./model/gamma10_kbt0.5_1I.pth'
 #config_file = f'./config/gamma10_kbt0.5_1I.txt'
 #q = load_model(model_file,config_file)
@@ -137,8 +145,8 @@ logging.info(f'Using device: {device}')
 # In[12]:
 
 
-args['lam'] = .10
-args['eta'] = .10
+args['lam'] = 0.1
+args['eta'] = 0.1
 print(device)
 
 
@@ -158,15 +166,19 @@ beta = 0.8
 alpha_beta = 0.9
 pinn_weight = 0.9 
 grad_weight = 0.05
+NNt = Nt *1
+NNsteps = Nsteps * 1
 # kbt = 1
 logging.info(f'Subtraining index: {subtrain_idx}')
 logging.info(f'Batch size: {batch_size}')
 logging.info(f'Learning rate: {lr}')
-logging.info(f'Number of training steps: {Nsteps}')
-logging.info(f'Number of time steps: {Nt}')
+logging.info(f'Number of training steps: {NNsteps}')
+logging.info(f'Number of time steps: {NNt}')
 logging.info(f'Args: {args}')
 if adaptive:
     logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
+
+
 
 loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           data=data,
@@ -189,7 +201,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 1e-6)
 
 
 loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
@@ -200,8 +212,8 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           label_b=label_b,
                                           alpha_b=100,
                                           lr = lr,
-                                          num_tsteps=Nt,
-                                          num_epoches=Nsteps,
+                                          num_tsteps=NNt,
+                                          num_epoches=NNsteps,
                                           device=device,
                                           args=args,
                                           xdim=ndim,
@@ -213,7 +225,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 1e-6)
 total_loss_list += loss_list
 total_b_loss_list += b_loss_list
 total_pinn_loss_list += pinn_loss_list
@@ -305,7 +317,7 @@ lr = 5e-5
 #lam = 1
 #kbt = .5
 subtrain_idx += 1
-NNsteps = Nsteps *2
+NNsteps = Nsteps *3
 NNt = Nt * 5 
 adaptive = True
 beta = 0.8
@@ -314,6 +326,7 @@ pinn_weight = 0.9
 grad_weight = 0.05
 args['lam'] = 2
 args['eta'] = 2
+
 
 logging.info(f'Subtraining index: {subtrain_idx}')
 logging.info(f'Batch size: {batch_size}')
@@ -344,7 +357,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 1e-6)
 
 
 # In[17]:
@@ -474,7 +487,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 1e-6)
 
 
 

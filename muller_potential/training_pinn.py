@@ -71,13 +71,13 @@ layers = [2*ndim,8,64,64,64,64,8,1]
 activ  = 'sigmoid'
 
 alpha_t = 1
-T = 1000
+T = 10000
 Nt = int(T/alpha_t)
 Nsteps = 20
 lr = 1e-3
 
 device = torch.device(
-                "cuda:6" if torch.cuda.is_available() else "cpu")
+                "cuda:5" if torch.cuda.is_available() else "cpu")
 
 
 xmin,xmax = -1.5,1.2
@@ -295,7 +295,7 @@ q.to(device)
 data = data.to(device)
 batch_size = 2**26
 #eta = 10
-lr = 1e-5
+lr = 5e-5
 #eta = 1
 #lam = 1
 #kbt = .5
@@ -418,7 +418,7 @@ data = data.to(device)
 w = w.to(device)
 batch_size = 2**26
 #eta = 10
-lr = 2e-6 
+lr = 5e-5 
 subtrain_idx += 1
 NNsteps = Nsteps * 3
 NNt = Nt * 5 
