@@ -1,0 +1,7 @@
+#! FIELDS time phi psi restraint.bias
+#! SET min_phi -pi
+#! SET max_phi pi
+#! SET min_psi -pi
+#! SET max_psi pi
+ 0.000000 0.549184 0.063468 809.771663
+ 0.200000 -2.820652 -2.872302 8.776036

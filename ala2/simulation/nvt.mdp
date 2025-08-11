@@ -1,0 +1,41 @@
+; Run control parameters
+integrator               = sd                ; Use molecular dynamics integrator
+nsteps                   = 50000        ; 100 ps (50,000 steps with a 2 fs timestep)
+dt                       = 0.002             ; Time step of 2 fs
+
+; Output control
+nstxout                 = 500                ; Save coordinates every 1 ps
+nstvout                 = 500                ; Save velocities every 1 ps
+nstenergy               = 500                ; Save energies every 1 ps
+nstlog                  = 500                ; Save log data every 1 ps
+
+; Bond constraints
+constraints             = h-bonds            ; Constrain all bonds involving hydrogens
+constraint_algorithm    = lincs              ; Use LINCS for constraints
+
+; Neighbor searching
+cutoff-scheme           = Verlet             ; Verlet cutoff scheme
+nstlist                 = 10                 ; Neighbor list updated every 10 steps
+rlist                   = 0.9                ; Short-range neighbor list cutoff (nm)
+
+; Electrostatics and VDW
+coulombtype             = PME                ; Particle Mesh Ewald for Coulomb interactions
+rcoulomb                = 0.9                ; Real-space cutoff for Coulomb interactions (nm)
+vdwtype                 = cutoff             ; Cutoff for van der Waals interactions
+rvdw                    = 0.9                ; Real-space cutoff for van der Waals interactions (nm)
+fourierspacing          = 0.1                ; PME grid spacing (nm)
+
+; Temperature coupling
+tc-grps                 = System             ; Single coupling group for the whole system
+tau_t                   = 1                ; Temperature relaxation time constant (ps)
+ref_t                   = 300                ; Target temperature (K)
+
+; Pressure coupling
+pcoupl                  = no                 ; Disable pressure coupling for NVT ensemble
+
+; Periodic boundary conditions
+pbc                     = xyz                ; Fully periodic boundary conditions
+
+; Miscellaneous
+gen_vel                 = no                ; Generate velocities at the beginning
+gen_temp                = 300                ; Initial temperature (K)

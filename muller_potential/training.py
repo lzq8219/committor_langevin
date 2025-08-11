@@ -121,6 +121,8 @@ total_pinn_loss_list = []
 total_tot_loss_list = []
 
 q = FunctionModel(layer_sizes=layers,activation=activ)
+
+
 #model_file = f'./model/gamma10_kbt0.5_1I.pth'
 #config_file = f'./config/gamma10_kbt0.5_1I.txt'
 #q = load_model(model_file,config_file)
@@ -189,7 +191,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 0)
 
 
 loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
@@ -213,7 +215,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 0)
 total_loss_list += loss_list
 total_b_loss_list += b_loss_list
 total_pinn_loss_list += pinn_loss_list
@@ -344,7 +346,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 0)
 
 
 # In[17]:
@@ -474,7 +476,7 @@ loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
                                           alpha_beta = alpha_beta,
                                           pinn_weight = pinn_weight, 
                                           grad_weight = grad_weight,
-                                          alpha_l2 = 1e-10)
+                                          alpha_l2 = 0)
 
 
 
