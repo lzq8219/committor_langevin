@@ -278,7 +278,7 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
                 res_dq,
                 res_dqx,
                 args,
-                have_rightside=True,
+                have_rightside=have_rightside,
                 rightside=rightside)
             
             b_loss = b_lossfn(y_b, label_b)
