@@ -12,7 +12,7 @@ def wait():
         print(f'Waiting {i}!')
 
 def loss_fn(outputs, data, w, res_q, res_dq, res_dqx,
-            args, have_rightside=False, rightside=0):
+            args,mass = None, have_rightside=False, rightside=0,normalized = False):
 
     ndim = args['ndim']
     kbt = args['kbt']
@@ -20,6 +20,8 @@ def loss_fn(outputs, data, w, res_q, res_dq, res_dqx,
     lam = args['lam']
     eta = args['eta']
     gamma = args['gamma']
+
+    normalize_factor = max(lam,eta,omega)
 
     gradients = torch.autograd.grad(outputs=outputs, inputs=data,
                                     grad_outputs=torch.ones_like(outputs),
@@ -37,11 +39,16 @@ def loss_fn(outputs, data, w, res_q, res_dq, res_dqx,
     if w.shape != (w.shape[0], 1):
         w = w.unsqueeze(1)
 
+    if mass is None:
+        mass = torch.ones(size=(1, ndim), dtype=torch.float32, device=data.device) 
     # print(grad_v.shape,res_dq.shape,w.shape)
     # print(outputs.shape,res_q.shape,w.shape)
-    loss = (omega * kbt * torch.sum(w * grad_v**2) + lam * torch.sum(w * outputs**2) + eta * torch.sum(w * grad_x**2)) / 2 \
-        + torch.sum(w * grad_v * res_dq) + torch.sum(w * outputs *
-                                                     res_q) + torch.sum(w * grad_x * res_dqx)
+
+    if mass.shape != (1,mass.shape[0]):
+        mass = mass.unsqueeze(0)
+    loss = (omega * kbt * torch.sum(w * grad_v**2/mass) + lam * torch.sum(w * outputs**2) + eta * torch.sum(w * grad_x**2/mass)) / 2 \
+        + torch.sum(w * grad_v * res_dq/mass) + torch.sum(w * outputs *
+                                                    res_q) + torch.sum(w * grad_x * res_dqx/mass)
     if have_rightside:
         if rightside.shape != (rightside.shape[0], 1):
             rightside = rightside.unsqueeze(1)
@@ -49,6 +56,8 @@ def loss_fn(outputs, data, w, res_q, res_dq, res_dqx,
 
     # loss = loss / data.shape[0]
     # print(loss)
+    if normalized:
+        loss = loss / normalize_factor
 
     return loss
 
@@ -77,11 +86,16 @@ def weight_update(model, data, w, dU, batchsize, args, device, threshold=1):
         w = w / torch.sum(w)
     # print(w)
 
-def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N = 10,pinn_weight = 0.9, grad_weight = 0.05):
+def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N = 10,pinn_weight = 0.9, grad_weight = 0.05,mass=None):
     sum = torch.zeros(size=(data.shape[0],1),dtype=torch.float32,device=device)
     sum_pinn = torch.zeros(size=(data.shape[0],1),dtype=torch.float32,device=device)
+    if mass is None:    
+        mass = torch.ones(size=(1, dU.shape[1]), dtype=torch.float32, device=device)
     for param in model.parameters():
         param.requires_grad = False
+
+    mass2 = torch.cat((mass, mass), dim=1)
+    print(mass2.shape)
     for i in range(N):
         data[:,
              xdim:xdim + vdim] = torch.randn(size=(data.shape[0],
@@ -103,9 +117,9 @@ def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N =
                                                     y),
                                                 create_graph=False, retain_graph=True)[0]
                 sum[k * batchsize:k * batchsize + d.shape[0]
-                    ] += torch.sum(gradients**2, dim=1, keepdim=True)
+                    ] += torch.sum(gradients**2/mass2, dim=1, keepdim=True)
             sum_pinn[k * batchsize:k * batchsize + d.shape[0]
-                     ] += pinn_loss(model(d), d, du, args).detach()**2
+                     ] += pinn_loss(model(d), d, du, args,mass=mass).detach()**2
             k+=1
             torch.cuda.empty_cache()
     sum = (sum / N)**beta
@@ -123,7 +137,7 @@ def weight_update_1(model,data,w,dU,batchsize,args,device,xdim,vdim,beta = 1,N =
     return w
 
 
-def build_rightside(outputs, data, dU, args):
+def build_rightside(outputs, data, dU, args,mass = None):
 
     ndim = args['ndim']
     kbt = args['kbt']
@@ -131,6 +145,11 @@ def build_rightside(outputs, data, dU, args):
     lam = args['lam']
     eta = args['eta']
     gamma = args['gamma']
+
+    if mass is None:
+        mass = torch.ones(size=(1, dU.shape[1] ), dtype=torch.float32, device=data.device)
+    if mass.shape != (1, dU.shape[1]):
+        mass = mass.unsqueeze(0)
 
     with torch.no_grad():
         gradients = torch.autograd.grad(outputs=outputs, inputs=data,
@@ -148,20 +167,25 @@ def build_rightside(outputs, data, dU, args):
 
         # print(data[:, ndim:].shape, grad_x.shape, dU.shape, grad_v.shape,(data[:, ndim:] * grad_x).shape, (dU * grad_v).shape)
         res_q = -lam * outputs - \
-            torch.sum((data[:, ndim:] * grad_x - dU * grad_v),
+            torch.sum((data[:, ndim:] * grad_x - dU/mass * grad_v),
                       dim=1, keepdim=True)
         res_dq = (gamma - omega) * grad_v * kbt
         res_dqx = -eta * grad_x
 
     return res_q, res_dq, res_dqx
 
-def pinn_loss_grad(grad_x,grad_v, data, dU, args, create_graph=False):
+def pinn_loss_grad(grad_x,grad_v, data, dU, args, create_graph=False,mass = None):
     ndim = args['ndim']
     kbt = args['kbt']
     omega = args['omega']
     lam = args['lam']
     eta = args['eta']
     gamma = args['gamma']
+
+    if mass is None:
+        mass = torch.ones(size=(1, dU.shape[1]), dtype=torch.float32, device=data.device)
+    if mass.shape != (1, dU.shape[1]):
+        mass = mass.unsqueeze(0)
 
     x = data[:, :ndim]
     v = data[:, ndim:]
@@ -181,20 +205,25 @@ def pinn_loss_grad(grad_x,grad_v, data, dU, args, create_graph=False):
                                    create_graph=create_graph,
                                    retain_graph=True)[0]
         # print(temp[:,ndim+i].shape,lap_v.shape)
-        lap_v += temp[:, ndim + i]
+        lap_v += temp[:, ndim + i]/ mass[0, i]
     lap_v.unsqueeze_(dim=1)
 
-    ttt = torch.sum((data[:, ndim:] * grad_x - (dU + gamma * v)
+    ttt = torch.sum((data[:, ndim:] * grad_x - (dU/mass + gamma * v)
                      * grad_v), dim=1, keepdim=True)
     return ttt + kbt * gamma * lap_v
 
-def pinn_loss(outputs, data, dU, args, create_graph=False):
+def pinn_loss(outputs, data, dU, args, create_graph=False,mass = None):
     ndim = args['ndim']
     kbt = args['kbt']
     omega = args['omega']
     lam = args['lam']
     eta = args['eta']
     gamma = args['gamma']
+
+    if mass is None:
+        mass = torch.ones(size=(1, dU.shape[1]), dtype=torch.float32, device=data.device)
+    if mass.shape != (1, dU.shape[1]):
+        mass = mass.unsqueeze(0)
 
     grad = torch.autograd.grad(
         outputs=outputs,
@@ -209,9 +238,9 @@ def pinn_loss(outputs, data, dU, args, create_graph=False):
     # \Delta q_v
     if not create_graph:
         #with torch.no_grad():
-        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph)
+        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph,mass=mass)
     else:
-        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph)
+        return pinn_loss_grad(grad_x, grad_v, data, dU, args, create_graph=create_graph,mass=mass)
     
 
 
@@ -234,9 +263,13 @@ def split(dataset, batchsize, shuffle=True):
 
 
 def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
-               opt, num_epoches, device, args, alpha_l2=0, check_point=10, have_rightside=False):
+               opt, num_epoches, device, args, alpha_l2=0, check_point=10, have_rightside=False,mass = None,normalized = False,lr_decay = 1):
     loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
-    
+    scheduler = optim.lr_scheduler.ExponentialLR(opt, gamma=lr_decay)
+    if mass is None:
+        mass = torch.ones(size=(1, args['ndim']), dtype=torch.float32, device=device)
+    if mass.shape != (1, args['ndim']):
+        mass = mass.unsqueeze(0)
     for i in range(num_epoches):
         with torch.no_grad():
             dataloader = split(dataset, batchsize, shuffle=True)
@@ -264,7 +297,7 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
             yy = model_o(d)
             # with torch.no_grad():
             #    print(torch.sum((y-yy)**2))
-            res_q, res_dq, res_dqx = build_rightside(yy, d, dU, args)
+            res_q, res_dq, res_dqx = build_rightside(yy, d, dU, args,mass=mass)
             opt.zero_grad()
             # y = model(d)
             y = model(d)
@@ -279,7 +312,9 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
                 res_dqx,
                 args,
                 have_rightside=have_rightside,
-                rightside=rightside)
+                rightside=rightside,
+                mass=mass,
+                normalized = normalized)
             
             b_loss = b_lossfn(y_b, label_b)
             l2_reg = 0
@@ -290,7 +325,7 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
             
             tot_loss.backward()
             opt.step()
-            
+        scheduler.step() 
 
         if i % check_point == 0:
             # print(i)
@@ -299,6 +334,7 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
             b_loss_list.append(b_loss.item())
             tot_loss_list.append(tot_loss.item())
 
+            
             pinn_loss_list.append(
                 torch.sum(
                     pinn_loss(
@@ -306,6 +342,7 @@ def train_step(model, model_o, dataset, batchsize, data_b, label_b, alpha_b,
                         d,
                         dU,
                         args)**2 * w).item()**0.5)
+  
 
     return loss_list, b_loss_list, tot_loss_list, pinn_loss_list
 
@@ -408,7 +445,7 @@ def train_pinn(model, data: torch.Tensor,w, batchsize, data_b, label_b, dU,
 
 
 def train_resample(model, data: torch.Tensor, w, batchsize, data_b, label_b, dU,
-                   alpha_b, lr, num_tsteps, num_epoches, device, args, xdim, vdim, checkpoint=10, threshold=1, alpha_l2=0, adaptive=True, beta=1, alpha_beta=1, valid_checkpoint=-1, valid_data=None, valid_w=None, valid_dU=None, pinn_weight=0.9, grad_weight=0.05):
+                   alpha_b, lr, num_tsteps, num_epoches, device, args, xdim, vdim, checkpoint=10, threshold=1, alpha_l2=0, adaptive=True, beta=1, alpha_beta=1, valid_checkpoint=-1, valid_data=None, valid_w=None, valid_dU=None, pinn_weight=0.9, grad_weight=0.05,normalized = False):
     torch.cuda.empty_cache()
     # data = data.to(device)
     # dU = dU.to(device)
@@ -441,12 +478,12 @@ def train_resample(model, data: torch.Tensor, w, batchsize, data_b, label_b, dU,
         # dataloader = (data,res_q,res_dq)
         print(f"itr{t}: Training!")
         ll, bl, tl, pl = train_step(model, model_o, [data, w, dU], batchsize,
-                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint, alpha_l2=alpha_l2, have_rightside=False)
+                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint, alpha_l2=alpha_l2, have_rightside=False,normalized = normalized)
         loss_list += ll
         b_loss_list += bl
         tot_loss_list += tl
         pinn_loss_list += pl
-        if adaptive and t % 20 == 0:
+        if adaptive and t % 50 == 0:
             w[:] = weight_update_1(model, data, w, dU, batchsize, args, device, xdim, vdim, beta=beta,pinn_weight=pinn_weight, grad_weight=grad_weight)
 
         if valid_checkpoint > 0 and t % valid_checkpoint == 0:
@@ -479,9 +516,88 @@ def train_resample(model, data: torch.Tensor, w, batchsize, data_b, label_b, dU,
     else:
         return loss_list, b_loss_list, tot_loss_list, pinn_loss_list
 
+def train_mass(model, data: torch.Tensor, w, batchsize, data_b, label_b, dU,
+                   alpha_b, lr, num_tsteps, num_epoches, device, args, xdim, vdim, 
+                   mass = None, checkpoint=10, threshold=1, alpha_l2=0, adaptive=True, beta=1, alpha_beta=1, valid_checkpoint=-1, valid_data=None, valid_w=None, valid_dU=None, pinn_weight=0.9, grad_weight=0.05,normalized = False,resampling_num = 1):
+    torch.cuda.empty_cache()
+    # data = data.to(device)
+    # dU = dU.to(device)
+    label_b = label_b.to(device)
+    data_b = data_b.to(device)
+    data = data.to(device)
+    dU = dU.to(device)
+    if mass is None:
+        mass = torch.ones(size=(1, dU.shape[1]), dtype=torch.float32, device=device)
+    if mass.shape != (1, dU.shape[1]):
+        mass = mass.unsqueeze(0)
+
+    loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
+    valid_pinn_loss = []
+    if valid_data is not None and valid_dU is not None:
+        valid_data = valid_data.to(device)
+        valid_data.requires_grad_(True)
+        valid_dU = valid_dU.to(device)
+    
+    for t in range(num_tsteps):
+        print(f"itr{t}: Building dataset!")
+        if t%resampling_num == 0:
+            data[:,
+                xdim:xdim + vdim] = torch.randn(size=(data.shape[0],
+                                                    vdim),
+                                                dtype=torch.float32,
+                                                device=device) * np.sqrt(args['kbt'])/torch.sqrt(mass)
+        model_o = copy.deepcopy(model)
+        for param in model_o.parameters():
+            param.requires_grad = False
+        # y = model(data)
+        # res_q, res_dq, res_dqx = build_rightside(y, data, dU, args)
+        # dataset = TensorDataset(data.to('cpu'),res_q.to('cpu'),res_dq.to('cpu'))
+        opt = optim.Adam(model.parameters(), lr=lr)
+        # dataloader = (data,res_q,res_dq)
+        print(f"itr{t}: Training!")
+        ll, bl, tl, pl = train_step(model, model_o, [data, w, dU], batchsize,
+                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint, alpha_l2=alpha_l2, have_rightside=False,mass=mass,normalized = normalized)
+        loss_list += ll
+        b_loss_list += bl
+        tot_loss_list += tl
+        pinn_loss_list += pl
+        # if adaptive and t % 20 == 0:
+        #    w[:] = weight_update_1(model, data, w, dU, batchsize, args, device, xdim, vdim, beta=beta,pinn_weight=pinn_weight, grad_weight=grad_weight,mass = mass)
+
+        if valid_checkpoint > 0 and t % valid_checkpoint == 0:
+
+            for param in model.parameters():
+                param.requires_grad = False
+            if valid_data is not None and valid_dU is not None:
+                y = model(valid_data)
+                if valid_w is not None:
+                    valid_w = valid_w.to(device)
+                else:
+                    valid_w = torch.ones(
+                        size=(
+                            valid_data.shape[0],
+                            1),
+                        dtype=torch.float32,
+                        device=device)
+                    valid_w = valid_w / torch.sum(valid_w)
+            pinn_l = pinn_loss(y, valid_data, valid_dU, args,mass=mass).detach()
+            pinn_l = torch.sum(pinn_l**2 * valid_w).item()**0.5
+            print(f"Validation at step {t}: PINN Loss: {pinn_l:.4f}")
+            valid_pinn_loss.append(pinn_l)
+            for param in model.parameters():
+                param.requires_grad = True
+        torch.cuda.empty_cache()
+        
+
+    if valid_checkpoint > 0:
+        return loss_list, b_loss_list, tot_loss_list, pinn_loss_list, valid_pinn_loss
+    else:
+        return loss_list, b_loss_list, tot_loss_list, pinn_loss_list
+
+
 
 def train_resample_qref(model, data: torch.Tensor, w, q_ref, batchsize, data_b, label_b, dU,
-                        alpha_b, lr, num_tsteps, num_epoches, device, args, xdim, vdim, checkpoint=10, threshold=1, alpha_l2=0, adaptive=True, beta=1, alpha_beta=1, valid_checkpoint=-1, valid_data=None, valid_w=None, valid_dU=None, pinn_weight=0.9, grad_weight=0.05):
+                        alpha_b, lr, num_tsteps, num_epoches, device, args, xdim, vdim, checkpoint=10, threshold=1, alpha_l2=0, adaptive=True, beta=1, alpha_beta=1, valid_checkpoint=-1, valid_data=None, valid_w=None, valid_dU=None, pinn_weight=0.9, grad_weight=0.05,normalized = False):
     torch.cuda.empty_cache()
     # data = data.to(device)
     # dU = dU.to(device)
@@ -525,7 +641,7 @@ def train_resample_qref(model, data: torch.Tensor, w, q_ref, batchsize, data_b, 
         # dataloader = (data,res_q,res_dq)
         print(f"itr{t}: Training!")
         ll, bl, tl, pl = train_step(model, model_o, [data, w, dU,rightside], batchsize,
-                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint, alpha_l2=alpha_l2, have_rightside=True)
+                                    data_b, label_b, alpha_b, opt, num_epoches, device, args, check_point=checkpoint, alpha_l2=alpha_l2, have_rightside=True,normalized = normalized)
         loss_list += ll
         b_loss_list += bl
         tot_loss_list += tl
@@ -576,6 +692,144 @@ def train_resample_qref(model, data: torch.Tensor, w, q_ref, batchsize, data_b, 
         return loss_list, b_loss_list, tot_loss_list, pinn_loss_list, valid_pinn_loss
     else:
         return loss_list, b_loss_list, tot_loss_list, pinn_loss_list
+
+def loss_fn_overdamped(outputs, data, w, 
+            args,mass = None):
+
+    ndim = args['ndim']
+    kbt = args['kbt']
+    omega = args['omega']
+    lam = args['lam']
+    eta = args['eta']
+    gamma = args['gamma']
+
+    gradients = torch.autograd.grad(outputs=outputs, inputs=data,
+                                    grad_outputs=torch.ones_like(outputs),
+                                    create_graph=True, retain_graph=True)[0]
+    
+    '''
+    loss = (kbt*torch.sum(grad_v**2)+torch.sum(outputs**2))/2 \
+            +torch.sum(grad_v*res_dq)+torch.sum(outputs*res_q)
+    '''
+    # print(grad_v.shape,res_dq.shape)
+    # print(outputs.shape,res_q.shape)
+    if w.shape != (w.shape[0], 1):
+        w = w.unsqueeze(1)
+
+    if mass is None:
+        mass = torch.ones(size=(1, ndim), dtype=torch.float32, device=data.device) 
+    # print(grad_v.shape,res_dq.shape,w.shape)
+    # print(outputs.shape,res_q.shape,w.shape)
+
+    if mass.shape != (1,mass.shape[0]):
+        mass = mass.unsqueeze(0)
+    loss =  torch.sum(w * gradients**2/mass) 
+    
+
+    # loss = loss / data.shape[0]
+    # print(loss)
+
+    return loss
+
+def train_overdamped(model, data: torch.Tensor,w, batchsize, data_b, label_b,
+          alpha_b, lr, num_tsteps, num_epoches, device, args,xdim,vdim,
+           mass = None, checkpoint=10,alpha_l2=0,valid_checkpoint = -1,valid_data = None,valid_w=None,valid_dU = None,model_old = None):
+    torch.cuda.empty_cache()
+    # data = data.to(device)
+    # dU = dU.to(device)
+    label_b = label_b.to(device)
+    data_b = data_b.to(device)
+    data = data.to(device)
+    data.requires_grad_(False)
+
+    loss_list, b_loss_list, tot_loss_list, pinn_loss_list = [], [], [], []
+    valid_pinn_loss = []
+    if valid_data is not None and valid_dU is not None:
+        valid_data = valid_data.to(device)
+        valid_data.requires_grad_(True)
+        valid_dU = valid_dU.to(device)
+    for t in range(num_tsteps):
+        print(f"itr{t}: Building dataset!")
+        # data[:,xdim:xdim+vdim] = torch.randn(size=(data.shape[0],vdim),dtype=torch.float32,device=device) * np.sqrt(args['kbt'])
+        # y = model(data)
+        # res_q, res_dq, res_dqx = build_rightside(y, data, dU, args)
+        # dataset = TensorDataset(data.to('cpu'),res_q.to('cpu'),res_dq.to('cpu'))
+        opt = optim.Adam(model.parameters(), lr=lr)
+        # dataloader = (data,res_q,res_dq)
+        print(f"itr{t}: Training!")
+        model.train()
+        dataset = [data, w]
+        batches = split(dataset, batchsize, shuffle=True)
+        for d, w in batches:
+            # d = d.to(device)
+            d.requires_grad_(True)
+            
+            # dU = dU.to(device)
+            # w = w.to(device)
+            # rq=rq.to(device)
+            # rdq=rdq.to(device)
+            opt.zero_grad()
+            # y = model(d)
+            if model_old is not None:
+                print(model(d).shape,model_old(d).shape)
+                y = model(d)- model_old(d)
+                y_b = model(data_b) - model_old(data_b)
+            else:
+                y = model(d)
+                y_b = model(data_b)
+            loss = loss_fn_overdamped(
+                y,
+                d,
+                w,
+                args,
+                mass=mass)
+
+            b_loss = b_lossfn(y_b, label_b)
+            l2_reg = 0
+            for param in model.parameters():
+                l2_reg += torch.norm(param) ** 2
+
+            tot_loss = loss + b_loss * alpha_b + l2_reg * alpha_l2
+            if model_old is not None:
+                print(b_loss.item())
+            
+            tot_loss.backward()
+            opt.step()
+            loss_list.append(loss.item())
+            b_loss_list.append(b_loss.item())
+            tot_loss_list.append(tot_loss.item())
+
+        
+        if valid_checkpoint > 0 and t % valid_checkpoint == 0:
+
+            for param in model.parameters():
+                param.requires_grad = False
+            if valid_data is not None and valid_dU is not None:
+                y = model(valid_data)
+                if valid_w is not None:
+                    valid_w = valid_w.to(device)
+                else:
+                    valid_w = torch.ones(
+                        size=(
+                            valid_data.shape[0],
+                            1),
+                        dtype=torch.float32,
+                        device=device)
+                    valid_w = valid_w / torch.sum(valid_w)
+            pinn_l = pinn_loss(y, valid_data, valid_dU, args)
+            pinn_l = torch.sum(pinn_l**2 * valid_w).item()**0.5
+            print(f"Validation at step {t}: PINN Loss: {pinn_l:.4f}")
+            valid_pinn_loss.append(pinn_l)
+            for param in model.parameters():
+                param.requires_grad = True
+
+        torch.cuda.empty_cache()
+        print(f"itr{t}: Training completed!")
+
+    if valid_checkpoint > 0:
+        return loss_list, b_loss_list, tot_loss_list, valid_pinn_loss
+    else:
+        return loss_list, b_loss_list, tot_loss_list
 
 
 if __name__ == '__main__':

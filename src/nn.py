@@ -86,11 +86,12 @@ class simple_function_model(nn.Module):
 
 
 class FunctionModel(nn.Module):
-    def __init__(self, layer_sizes, activation='linear'):
+    def __init__(self, layer_sizes, activation='linear',output_scale = 1):
         super(FunctionModel, self).__init__()
         self.layers = nn.ModuleList()
         self.layer_sizes = layer_sizes
         self.activation = activation
+        self.output_scale=1
         for i in range(len(layer_sizes) - 1):
             # self.layers.append(ResidualBlock(layer_sizes[i]))
 
@@ -119,7 +120,7 @@ class FunctionModel(nn.Module):
     def forward(self, x: torch.float32):
         for layer in self.layers:
             x = layer(x)
-        return x
+        return x*self.output_scale
 
     def initialize_weights(self):
         for layer in self.layers:
@@ -129,6 +130,60 @@ class FunctionModel(nn.Module):
 
 
 # Function to compute the integral I[v]
+
+
+class FunctionModelWithDescriptor(nn.Module):
+    def __init__(self, layer_sizes, activation='linear', using_descriptor=False,output_scale=1):
+        super(FunctionModelWithDescriptor, self).__init__()
+        self.layers = nn.ModuleList()
+        self.layer_sizes = layer_sizes
+        self.activation = activation
+        self.output_scale=output_scale
+        for i in range(len(layer_sizes) - 1):
+            # self.layers.append(ResidualBlock(layer_sizes[i]))
+
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+
+            if i < len(layer_sizes) - 2:  # No activation after the last layer
+                self.layers.append(nn.Softplus())
+
+        if activation == 'sigmoid':
+            self.layers.append(nn.Sigmoid())
+        elif activation == 'tanh':
+            self.layers.append(nn.Tanh())
+        elif activation == 'gcdf':
+            self.layers.append(GaussianCDFActivation())
+        elif activation == 'relu':
+            self.layers.append(nn.ReLU())
+        elif activation == 'softplus':
+            self.layers.append(nn.Softplus())
+        elif activation == 'doublesigmoid':
+            self.layers.append(DoubleSigmoid())
+        elif activation == 'linear':
+            pass
+        else:
+            print('Warning! Activation function is unavailable! Using Linear by default!')
+
+        self.using_descriptor = using_descriptor
+
+
+    def descriptor(self, x: torch.float32):
+        pass
+
+
+    def forward(self, x: torch.float32):
+        if self.using_descriptor:
+            x = self.descriptor(x)
+        for layer in self.layers:
+            x = layer(x)
+        return x*self.output_scale
+
+    def initialize_weights(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                # Initialize weights and biases to zero
+                nn.init.xavier_normal_(layer.weight)
+
 
 
 def save_model(model: FunctionModel, model_path, config_path):
@@ -160,6 +215,8 @@ def load_model(model_path, config_path, device='cpu'):
     model.load_state_dict(torch.load(model_path, map_location=device))
     print(f"Model loaded from {model_path}")
     return model
+
+
 
 
 if __name__ == '__main__':
