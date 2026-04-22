@@ -112,6 +112,10 @@ load_pinn = False
 #config_file = f'./config/gamma10_kbt0.5_1I.txt'
 #q = load_model(model_file,config_file)
 
+fd = np.loadtxt(f'1d_double_well/model/fd_g{gamma}_kbt{kbt}.txt')
+q0 = np.loadtxt(f'1d_double_well/model/fd_kbt{kbt}_q0.txt')
+q_simulation = np.loadtxt('1d_double_well/model/q_s_1d.txt')
+
 if load_pinn:
     model_file = f'./model/gamma{gamma}_kbt{kbt}_pinn.pth'
     config_file = f'./config/gamma{gamma}_kbt{kbt}_pinn.txt'
@@ -132,6 +136,12 @@ linf_losses_1 = []
 l2_loss_pinns_1 = []
 l1_loss_pinns_1 = []
 linf_loss_pinns_1 = []
+
+NN = 10000
+vvms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
+                device=device).to(device) * np.sqrt(kbt)
+xxms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
+                device=device).to(device) * sigma * np.sqrt(kbt)
 
 
 
@@ -212,55 +222,6 @@ for i in range(20):
     config_file = f'1d_double_well/config/gamma{gamma}_kbt{kbt}_test_step_{i}.txt'
     save_model(q,model_file,config_file)
 
-
-
-gammas = [5,1,0.2]
-kbts = [0.1,0.1,0.1]
-draw_plot = False
-l2_losses = []
-l1_losses = []
-linf_losses = []
-l2_loss_pinns = []
-l1_loss_pinns = []
-linf_loss_pinns = []
-
-l2_losses_1 = []
-l1_losses_1 = []
-linf_losses_1 = []
-l2_loss_pinns_1 = []
-l1_loss_pinns_1 = []
-linf_loss_pinns_1 = []
-
-
-
-rates = []
-rates_ref = []
-rates_1 = []
-
-
-qs =[]
-qs_adaptive_false = []
-qs_pinn = []
-
-for kbt, gamma in zip(kbts, gammas):
-    
-    # %%
-    ndim = 3
-    lam = 10
-    eta = gamma*kbt
-    omega = gamma
-    sigma = 1/0.3
-
-    args = {
-            "ndim": ndim,
-            "gamma": gamma,
-            "kbt": kbt,
-            "lam": lam,
-            "eta": eta,
-            "omega": omega
-        }
-
-
     def dU_func(x):
         dU = torch.zeros_like(x)
         dU[:, 0] = 4 * (x[:, 0]**2 - 1) * x[:, 0]
@@ -269,16 +230,10 @@ for kbt, gamma in zip(kbts, gammas):
 
     
     # %%
-    fd = np.loadtxt(f'1d_double_well/model/fd_g{gamma}_kbt{kbt}.txt')
-    q0 = np.loadtxt(f'1d_double_well/model/fd_kbt{kbt}_q0.txt')
-    q_simulation = np.loadtxt('1d_double_well/model/q_s_1d.txt')
+    
 
     # %%
-    NN = 10000
-    vvms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
-                    device=device).to(device) * np.sqrt(kbt)
-    xxms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
-                    device=device).to(device) * sigma * np.sqrt(kbt)
+    
 
     # %%
     
@@ -292,9 +247,6 @@ for kbt, gamma in zip(kbts, gammas):
         dtype=torch.float32)
     d_each_slice[:, [0, ndim]] = torch.from_numpy(fd[:, 0:2].astype(np.float32)).to(device)
 
-    
-
-    
 
     l2_loss = 0
     l1_loss = 0
@@ -346,79 +298,8 @@ for kbt, gamma in zip(kbts, gammas):
     linf_losses_1.append(linf_loss_HSS)
     
 
-
-
-    
-    pinn_NNs = []
-    pinn_HSSs = []
     
     
-    pinn_l2_loss = 0
-    pinn_l1_loss = 0
-    pinn_linf_loss = 0
-    pinn_l2_loss_HSSs = 0
-    pinn_l1_loss_HSSs = 0
-    pinn_linf_loss_HSSs = 0
-
-    for idx in range(NN):
-        print(f'{gamma} Processing 1, slice {idx+1}/{NN}',end='\r')
-        d_each_slice.requires_grad_(False)
-        d_each_slice[:, (ndim + 1):] = vvms[idx].repeat(fd.shape[0], 1)
-        d_each_slice[:, 1:ndim] = xxms[idx].repeat(fd.shape[0], 1)
-        dU1 = dU_func(d_each_slice[:, :ndim])
-        d_each_slice.requires_grad_(True)
-        pinn_NN = pinn_loss(
-            q(d_each_slice),
-            d_each_slice,
-            dU1,
-            args).squeeze().detach().cpu().numpy()
-        pinn_HSS = pinn_loss(
-            q_HSS(d_each_slice),
-            d_each_slice,
-            dU1,
-            args).squeeze().detach().cpu().numpy()
-        
-        def U_func(x): return (x[:, 0]**2 - 1)**2 
-
-        HHH = U_func(d_each_slice[:, :ndim]) + 0.5 * (d_each_slice[:, ndim]**2)
-        HHH = HHH.detach().cpu().numpy()
-        ppp = np.exp(-(HHH - np.min(HHH)) / kbt)
-        ppp = ppp / np.sum(ppp)
-        pinn_l2_loss += np.sum((pinn_NN)**2 * ppp)
-        pinn_l2_loss_HSSs += np.sum((pinn_HSS)**2 * ppp)
-
-        pinn_l1_loss += np.sum(np.abs(pinn_NN) * ppp)
-        pinn_l1_loss_HSSs += np.sum(np.abs(pinn_HSS) * ppp)
-
-        pinn_linf_loss = np.max((np.max(np.abs(pinn_NN)), linf_loss))
-        pinn_linf_loss_HSSs = np.max((np.max(np.abs(pinn_HSS)), linf_loss_HSS))
-
-
-    pinn_l2_loss = pinn_l2_loss / NN
-    pinn_l2_loss = np.sqrt(pinn_l2_loss)
-    pinn_l1_loss = pinn_l1_loss / NN
-    pinn_l2_loss_HSSs = pinn_l2_loss_HSSs / NN
-    pinn_l2_loss_HSSs = np.sqrt(pinn_l2_loss_HSSs)
-    pinn_l1_loss_HSSs = pinn_l1_loss_HSSs / NN
-
-    l2_loss_pinns.append(pinn_l2_loss)
-    l1_loss_pinns.append(pinn_l1_loss)
-    linf_loss_pinns.append(pinn_linf_loss)
-    l2_loss_pinns_1.append(pinn_l2_loss_HSSs)
-    l1_loss_pinns_1.append(pinn_l1_loss_HSSs)
-    linf_loss_pinns_1.append(pinn_linf_loss_HSSs)
-
-
-
-
-
-
-
-
-
-
-
-# %%
 
 
 
