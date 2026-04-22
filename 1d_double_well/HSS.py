@@ -13,6 +13,7 @@ from nn import FunctionModel, save_model, load_model
 import copy
 import matplotlib.pyplot as plt
 from model_training import train_resample,pinn_loss,build_rightside,train_pinn,train_HSS
+import pandas as pd
 
 
 # %%
@@ -137,7 +138,7 @@ l2_loss_pinns_1 = []
 l1_loss_pinns_1 = []
 linf_loss_pinns_1 = []
 
-NN = 10000
+NN = 10
 vvms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
                 device=device).to(device) * np.sqrt(kbt)
 xxms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
@@ -158,10 +159,11 @@ batch_size = 2**22
 lr = 1e-3
 lr_HSS_2 = 1e-3
 num_epoches_HSS_2 = Nsteps
-Nt_steps_checkpoint = 1
+Nt_steps_checkpoint = 2
 q.to(device)
 q_HSS.to(device)
-for i in range(20):
+KKK = 50
+for i in range(KKK):
     train_HSS(model =q_HSS, 
         data = data, 
         w = w, 
@@ -228,15 +230,6 @@ for i in range(20):
         dU[:, 1:] = x[:, 1:] / sigma**2
         return dU
 
-    
-    # %%
-    
-
-    # %%
-    
-
-    # %%
-    
     # fig1, axs1 = plt.subplots(mm, nn, figsize=(mm*7, nn*5))
     q.to(device)
     d_each_slice = torch.zeros(
@@ -256,7 +249,7 @@ for i in range(20):
     linf_loss_HSS = 0
 
     for idx in range(NN):
-        print(f'{gamma} Processing 0, slice {idx+1}/{NN}')
+        print(f'{gamma} Processing 0, slice {idx+1}/{NN}',end='\r')
         d_each_slice[:, (ndim + 1):] = vvms[idx].repeat(fd.shape[0], 1)
         d_each_slice[:, 1:ndim] = xxms[idx].repeat(fd.shape[0], 1)
         qqq_NN = q(d_each_slice).squeeze().to('cpu').detach().numpy()
@@ -296,6 +289,20 @@ for i in range(20):
     
     linf_losses.append(linf_loss)
     linf_losses_1.append(linf_loss_HSS)
+
+t = np.arange(KKK)*Nt_steps_checkpoint
+print(len(t),len(l2_losses))
+
+df = pd.DataFrame({
+    't': t,
+    'l2 loss': l2_losses,
+    'l1 loss': l1_losses,
+    'linf loss': linf_losses,
+    'l2 loss HSS': l2_losses_1,
+    'l1 loss HSS': l1_losses_1,
+    'linf loss HSS': linf_losses_1
+})
+df.to_csv('1d_double_well/errors_rates_t.txt', index=False)
     
 
     
