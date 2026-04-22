@@ -36,7 +36,7 @@ gamma = 1
 kbt = 5
 lam = 10
 eta = 10
-omega = gamma
+omega = 25
 
 args = {
         "ndim": ndim,
@@ -71,13 +71,13 @@ layers = [2*ndim,8,64,64,64,64,8,1]
 activ  = 'sigmoid'
 
 alpha_t = 1
-T = 200
+T = 400
 Nt = int(T/alpha_t)
 Nsteps = 40
 lr = 1e-3
 
 device = torch.device(
-                "cuda:7" if torch.cuda.is_available() else "cpu")
+                "cuda" if torch.cuda.is_available() else "cpu")
 
 
 xmin,xmax = -1.5,1.2
@@ -95,7 +95,8 @@ print(f"N_Sample: {N_sample}")
 
 v = torch.randn(size=(N_sample,ndim),dtype = torch.float32)*np.sqrt(kbt)
 data = torch.cat((x,v),dim=1)
-w = torch.ones(size=(data.shape[0],1),dtype=torch.float32,device = device)
+w = torch.ones(size=(data.shape[0],1),dtype=torch.float32)
+w = w.to(device)
 w = w/torch.sum(w)
 dU = potential.gradient(data[:,:ndim])
 
@@ -109,6 +110,8 @@ xB = torch.from_numpy(potential.points_in_b(NB,r).astype(np.float32))
 xB = torch.cat((xB,vB),dim=1)
 labelA = 0*torch.ones_like(xA[:,0])
 labelB = 1*torch.ones_like(xB[:,0])
+
+
 
 data_b = torch.cat((xA,xB),dim=0)
 label_b = torch.cat((labelA,labelB),dim=0).unsqueeze(dim=1)
@@ -152,8 +155,8 @@ logging.info(f'Ref config file: {config_file_ref}')
 # In[12]:
 
 
-args['lam'] = 0.2
-args['eta'] = 0.2
+args['lam'] = 2
+args['eta'] = 2
 print(device)
 
 
@@ -163,6 +166,7 @@ print(device)
 ## initialize
 #data.requires_grad_(True)
 q.to(device)
+q_ref.to(device)
 data = data.to(device)
 batch_size = 2**26
 subtrain_idx = 0

@@ -196,7 +196,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-\#*#
+/#*#
 *.cpt
 *.edr
 *.trr
@@ -205,5 +205,11 @@ bck.*
 gmx_mpi.*
 step*
 restrained/
-simulation/
-ala2/
+ala2/simulation/
+ala2/config
+ala2/model
+ala2/log
+ala2/fig
+**/*.png
+**/**/*.png
+*.png
