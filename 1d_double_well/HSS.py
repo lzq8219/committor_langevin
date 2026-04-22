@@ -119,14 +119,20 @@ if load_pinn:
 
 
     
+l2_losses = []
+l1_losses = []
+linf_losses = []
+l2_loss_pinns = []
+l1_loss_pinns = []
+linf_loss_pinns = []
 
-# %%
+l2_losses_1 = []
+l1_losses_1 = []
+linf_losses_1 = []
+l2_loss_pinns_1 = []
+l1_loss_pinns_1 = []
+linf_loss_pinns_1 = []
 
-
-# %%
-print(device)
-
-# %%
 
 
 # %%
@@ -205,6 +211,208 @@ for i in range(20):
     model_file = f'1d_double_well/model/gamma{gamma}_kbt{kbt}_test_step_{i}.pth'
     config_file = f'1d_double_well/config/gamma{gamma}_kbt{kbt}_test_step_{i}.txt'
     save_model(q,model_file,config_file)
+
+
+
+gammas = [5,1,0.2]
+kbts = [0.1,0.1,0.1]
+draw_plot = False
+l2_losses = []
+l1_losses = []
+linf_losses = []
+l2_loss_pinns = []
+l1_loss_pinns = []
+linf_loss_pinns = []
+
+l2_losses_1 = []
+l1_losses_1 = []
+linf_losses_1 = []
+l2_loss_pinns_1 = []
+l1_loss_pinns_1 = []
+linf_loss_pinns_1 = []
+
+
+
+rates = []
+rates_ref = []
+rates_1 = []
+
+
+qs =[]
+qs_adaptive_false = []
+qs_pinn = []
+
+for kbt, gamma in zip(kbts, gammas):
+    
+    # %%
+    ndim = 3
+    lam = 10
+    eta = gamma*kbt
+    omega = gamma
+    sigma = 1/0.3
+
+    args = {
+            "ndim": ndim,
+            "gamma": gamma,
+            "kbt": kbt,
+            "lam": lam,
+            "eta": eta,
+            "omega": omega
+        }
+
+
+    def dU_func(x):
+        dU = torch.zeros_like(x)
+        dU[:, 0] = 4 * (x[:, 0]**2 - 1) * x[:, 0]
+        dU[:, 1:] = x[:, 1:] / sigma**2
+        return dU
+
+    
+    # %%
+    fd = np.loadtxt(f'1d_double_well/model/fd_g{gamma}_kbt{kbt}.txt')
+    q0 = np.loadtxt(f'1d_double_well/model/fd_kbt{kbt}_q0.txt')
+    q_simulation = np.loadtxt('1d_double_well/model/q_s_1d.txt')
+
+    # %%
+    NN = 10000
+    vvms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
+                    device=device).to(device) * np.sqrt(kbt)
+    xxms = torch.randn(size=(NN, ndim - 1), dtype=torch.float32,
+                    device=device).to(device) * sigma * np.sqrt(kbt)
+
+    # %%
+    
+    # fig1, axs1 = plt.subplots(mm, nn, figsize=(mm*7, nn*5))
+    q.to(device)
+    d_each_slice = torch.zeros(
+        size=(
+            fd.shape[0],
+            2 * ndim),
+        device=device,
+        dtype=torch.float32)
+    d_each_slice[:, [0, ndim]] = torch.from_numpy(fd[:, 0:2].astype(np.float32)).to(device)
+
+    
+
+    
+
+    l2_loss = 0
+    l1_loss = 0
+    linf_loss = 0
+    l2_loss_HSS = 0
+    l1_loss_HSS = 0
+    linf_loss_HSS = 0
+
+    for idx in range(NN):
+        print(f'{gamma} Processing 0, slice {idx+1}/{NN}')
+        d_each_slice[:, (ndim + 1):] = vvms[idx].repeat(fd.shape[0], 1)
+        d_each_slice[:, 1:ndim] = xxms[idx].repeat(fd.shape[0], 1)
+        qqq_NN = q(d_each_slice).squeeze().to('cpu').detach().numpy()
+        qqq_HSS = q_HSS(d_each_slice).squeeze().to('cpu').detach().numpy()
+        
+        
+        def U_func(x): return (x[:, 0]**2 - 1)**2 
+
+        HHH = U_func(d_each_slice[:, :ndim]) + 0.5 * (d_each_slice[:, ndim]**2)
+        HHH = HHH.detach().cpu().numpy()
+        ppp = np.exp(-(HHH - np.min(HHH)) / kbt)
+        ppp = ppp / np.sum(ppp)
+        print(ppp.shape,qqq_NN.shape,fd[:,2].shape)
+        l2_loss += np.sum((qqq_NN - fd[:, 2])**2 * ppp)
+        l2_loss_HSS += np.sum((qqq_HSS - fd[:, 2])**2 * ppp)
+        
+        l1_loss += np.sum(np.abs(qqq_NN - fd[:, 2]) * ppp)
+        l1_loss_HSS += np.sum(np.abs(qqq_HSS - fd[:, 2]) * ppp)
+        
+        linf_loss = np.max((np.max(np.abs(qqq_NN - fd[:, 2])), linf_loss))
+        linf_loss_HSS = np.max((np.max(np.abs(qqq_HSS - fd[:, 2])), linf_loss_HSS))
+        
+
+    l2_loss = l2_loss / NN
+    l2_loss = np.sqrt(l2_loss)
+    l2_loss_HSS = l2_loss_HSS / NN
+    l2_loss_HSS = np.sqrt(l2_loss_HSS)
+   
+    l2_losses.append(l2_loss)
+    l2_losses_1.append(l2_loss_HSS)
+    
+    l1_loss = l1_loss / NN
+    l1_loss_HSS = l1_loss_HSS / NN
+    
+    l1_losses.append(l1_loss)
+    l1_losses_1.append(l1_loss_HSS)
+    
+    linf_losses.append(linf_loss)
+    linf_losses_1.append(linf_loss_HSS)
+    
+
+
+
+    
+    pinn_NNs = []
+    pinn_HSSs = []
+    
+    
+    pinn_l2_loss = 0
+    pinn_l1_loss = 0
+    pinn_linf_loss = 0
+    pinn_l2_loss_HSSs = 0
+    pinn_l1_loss_HSSs = 0
+    pinn_linf_loss_HSSs = 0
+
+    for idx in range(NN):
+        print(f'{gamma} Processing 1, slice {idx+1}/{NN}',end='\r')
+        d_each_slice.requires_grad_(False)
+        d_each_slice[:, (ndim + 1):] = vvms[idx].repeat(fd.shape[0], 1)
+        d_each_slice[:, 1:ndim] = xxms[idx].repeat(fd.shape[0], 1)
+        dU1 = dU_func(d_each_slice[:, :ndim])
+        d_each_slice.requires_grad_(True)
+        pinn_NN = pinn_loss(
+            q(d_each_slice),
+            d_each_slice,
+            dU1,
+            args).squeeze().detach().cpu().numpy()
+        pinn_HSS = pinn_loss(
+            q_HSS(d_each_slice),
+            d_each_slice,
+            dU1,
+            args).squeeze().detach().cpu().numpy()
+        
+        def U_func(x): return (x[:, 0]**2 - 1)**2 
+
+        HHH = U_func(d_each_slice[:, :ndim]) + 0.5 * (d_each_slice[:, ndim]**2)
+        HHH = HHH.detach().cpu().numpy()
+        ppp = np.exp(-(HHH - np.min(HHH)) / kbt)
+        ppp = ppp / np.sum(ppp)
+        pinn_l2_loss += np.sum((pinn_NN)**2 * ppp)
+        pinn_l2_loss_HSSs += np.sum((pinn_HSS)**2 * ppp)
+
+        pinn_l1_loss += np.sum(np.abs(pinn_NN) * ppp)
+        pinn_l1_loss_HSSs += np.sum(np.abs(pinn_HSS) * ppp)
+
+        pinn_linf_loss = np.max((np.max(np.abs(pinn_NN)), linf_loss))
+        pinn_linf_loss_HSSs = np.max((np.max(np.abs(pinn_HSS)), linf_loss_HSS))
+
+
+    pinn_l2_loss = pinn_l2_loss / NN
+    pinn_l2_loss = np.sqrt(pinn_l2_loss)
+    pinn_l1_loss = pinn_l1_loss / NN
+    pinn_l2_loss_HSSs = pinn_l2_loss_HSSs / NN
+    pinn_l2_loss_HSSs = np.sqrt(pinn_l2_loss_HSSs)
+    pinn_l1_loss_HSSs = pinn_l1_loss_HSSs / NN
+
+    l2_loss_pinns.append(pinn_l2_loss)
+    l1_loss_pinns.append(pinn_l1_loss)
+    linf_loss_pinns.append(pinn_linf_loss)
+    l2_loss_pinns_1.append(pinn_l2_loss_HSSs)
+    l1_loss_pinns_1.append(pinn_l1_loss_HSSs)
+    linf_loss_pinns_1.append(pinn_linf_loss_HSSs)
+
+
+
+
+
+
 
 
 

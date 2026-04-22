@@ -225,3 +225,4 @@ ala2/fig
 *.synctex.gz
 setting.json
 **/model/*.txt
+*.svg
