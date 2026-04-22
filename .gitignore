@@ -224,3 +224,4 @@ ala2/fig
 *.snm
 *.synctex.gz
 setting.json
+**/model/*.txt
