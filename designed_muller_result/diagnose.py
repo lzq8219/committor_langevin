@@ -228,8 +228,8 @@ for gamma,kbt in zip(gammas,kbts):
     #draw_slice(mm,nn,points,e_pinns,X,Y,UU,save_fig_name_NN_pinn_error)
     print('Finished drawing NN and PINN error figures!')
 
-    save_fig_name_lq = f'muller_potential/figure/gamma{gamma}_kbt{kbt}/lq.png'
-    save_fig_name_elq = f'muller_potential/figure/gamma{gamma}_kbt{kbt}/elq.png'
+    save_fig_name_lq = f'designed_muller_result/figure/gamma{gamma}_kbt{kbt}/lq.png'
+    save_fig_name_elq = f'designed_muller_result/figure/gamma{gamma}_kbt{kbt}/elq.png'
     draw_slice(mm,nn,points,lq_NNs,X,Y,UU,save_fig_name_lq)
     draw_slice(mm,nn,points,elq_NNs,X,Y,UU,save_fig_name_elq )
     print('Finished drawing NN and PINN lq figures!')

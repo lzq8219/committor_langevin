@@ -1,6 +1,6 @@
 ; Run control parameters
 integrator               = sd                ; Use molecular dynamics integrator
-nsteps                   = 2000000         ; 20*500 ps (10,000 steps with a 2 fs timestep)
+nsteps                   = 1000000         ; 20*500 ps (10,000 steps with a 2 fs timestep)
 dt                       = 0.002             ; Time step of 2 fs
 
 ; Output control

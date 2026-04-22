@@ -44,9 +44,14 @@ U_phitheta = U_phitheta - np.min(U_phitheta)
 #U_phitheta = gaussian_filter(U_phitheta, sigma=1)
 
 if __name__ == "__main__":
-    for l in range(1,10):
-        data_paths = [f"ala2/simulation/o_{100+l}/long_C7eq_-3/positions.xvg",
-                    f"ala2/simulation/o_{100+l}/long_C7ax_-3/positions.xvg"]
+    data_paths = []
+    #data_paths = [f"ala2/simulation/long_C7eq/positions.xvg",
+    #              f"ala2/simulation/long_C7ax/positions.xvg"]
+    for k in range(1,10):
+        data_paths = []
+        #for i in range(k,k+1):
+        data_paths += [f"ala2/simulation/o_{k}/long_C7eq/positions.xvg",
+                    f"ala2/simulation/o_{k}/long_C7ax/positions.xvg"]
         data = []
 
         for data_path in data_paths:
@@ -77,14 +82,14 @@ if __name__ == "__main__":
 
         plt.figure(figsize=(6, 5))
         plt.scatter(phi, theta, s=1, alpha=0.1)
-        plt.show()
+        plt.savefig('ala2/fig/temp1.png')
 
 
         plt.figure(figsize=(6, 5))
         contour_lines = plt.contour(phi_contour_1, psi_contour_1, U_phipsi, levels=10, cmap="viridis")  # levels 控制等高线的数量
         plt.clabel(contour_lines, inline=True, fontsize=8)  
         plt.colorbar(label='Free Energy (kJ/mol)')  # Add a colorbar to show the range of mean values
-        plt.show()
+        plt.savefig('ala2/fig/temp2.png')
 
         plt.figure(figsize=(6, 5))
         plt.scatter(phi, theta, s=1, alpha=0.1)
@@ -92,4 +97,6 @@ if __name__ == "__main__":
         plt.clabel(contour_lines, inline=True, fontsize=8)
         plt.colorbar(label='Free Energy (kJ/mol)')  # Add a colorbar to show the range of mean values
         
-        plt.show()
+        plt.savefig(f'ala2/fig/temp3_{k}.png')
+        plt.close()
+        print('Done!')

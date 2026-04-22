@@ -156,10 +156,12 @@ data = torch.cat((long_C7eq_xs,long_C7ax_xs), dim=0).to(device)
 #w2 = np.exp(kbt**-1 * w2)
 #w2 = w2/np.sum(w2)
 #w = torch.from_numpy(np.concatenate((w1,w2),axis=0).astype(np.float32)).unsqueeze(1)
-w = torch.ones(data.shape[0], dtype=torch.float32).unsqueeze(1)
-w = w/torch.sum(w)*2
+wu = torch.ones(data.shape[0], dtype=torch.float32).unsqueeze(1)
+wu = wu/torch.sum(wu)
+w = wu
 w=w.to(device)
-l=-kbt
+wu = wu.to(device)
+l=-2
 for ii in range(itr+1):
     if ii == 0:
         continue
@@ -202,7 +204,8 @@ if itr == 0:
 else:
     model_file_old = f'./ala2/model/o_gamma{gamma_0+itr-1}_kbt{kbt}.pth'
     config_file_old = f'./ala2/config/o_gamma{gamma_0+itr-1}_kbt{kbt}.txt'
-    q_old = load_model(model_file_old,config_file_old)
+    q_old  = load_model_phipsi(model_file_old,config_file_old,layers)
+    print(q_old.output_scale)
     q_old.to(device)
     q_old.eval()
 
@@ -217,7 +220,7 @@ while True:
     gamma = gamma_0 + itr
     
     
-    q = NNphipsi_overdamped(layer_sizes=layers,n_atoms=num_heavy_atoms, activation='sigmoid',phi_group=phi_group_heavy,psi_group=theta_group_heavy)
+    q = NNphipsi_overdamped(layer_sizes=layers,n_atoms=num_heavy_atoms, activation='sigmoid',phi_group=phi_group_heavy,psi_group=theta_group_heavy,output_scale=itr+1)
 
     
 
@@ -277,7 +280,7 @@ while True:
                                             batchsize=batch_size,
                                             data_b=data_boundary,
                                             label_b=label_boundary,
-                                            alpha_b=1000000,
+                                            alpha_b=10000,
                                             lr = 1e-3,
                                             num_tsteps=Nt*5,
                                             num_epoches=Nsteps,
@@ -297,7 +300,7 @@ while True:
                                             batchsize=batch_size,
                                             data_b=data_boundary,
                                             label_b=label_boundary,
-                                            alpha_b=1000000,
+                                            alpha_b=10000,
                                             lr = lr,
                                             num_tsteps=NNt,
                                             num_epoches=NNsteps,
@@ -399,7 +402,7 @@ while True:
                                             batchsize=batch_size,
                                             data_b=data_boundary,
                                             label_b=label_boundary,
-                                            alpha_b=1000000,
+                                            alpha_b=10000,
                                             lr = lr,
                                             num_tsteps=NNt,
                                             num_epoches=NNsteps,
@@ -505,7 +508,7 @@ while True:
                                             batchsize=batch_size,
                                             data_b=data_boundary,
                                             label_b=label_boundary,
-                                            alpha_b=1000000,
+                                            alpha_b=10000,
                                             lr = lr,
                                             num_tsteps=NNt,
                                             num_epoches=NNsteps,
@@ -514,7 +517,8 @@ while True:
                                             checkpoint=10,
                                             xdim=ndim,
                                             vdim=ndim,
-                                            alpha_l2 = 1e-7)
+                                            alpha_l2 = 1e-7,
+                                            model_old = q_old)
 
 
 
@@ -621,7 +625,7 @@ while True:
         content = f'''em_C7eq.tpr plumed_C7eq_{l}.dat {model_file} {l} COLVAR_{l} {long_C7eq_path_itr}
 em_C7ax.tpr plumed_C7ax_{l}.dat {model_file} {l} COLVAR_{l} {long_C7ax_path_itr}'''
         f.write(content)
-    _cmd = " parallel -j3 --env PIN_CORES --env OMP_NUM_THREADS --joblog parallel.log 'PARALLEL_SLOT={%} ./biased_simulation.sh {1} {2} {3} {4} {5} {6}'"
+    _cmd = " parallel -j10 --env PIN_CORES --env OMP_NUM_THREADS --joblog parallel.log 'PARALLEL_SLOT={%} ./biased_simulation.sh {1} {2} {3} {4} {5} {6}'"
     cmd0 = f"cat {filename} |"+_cmd
     print(cmd0)
     subprocess.run(cmd0,shell=True)
@@ -645,12 +649,13 @@ em_C7ax.tpr plumed_C7ax_{l}.dat {model_file} {l} COLVAR_{l} {long_C7ax_path_itr}
     w2 = w2/np.sum(w2)
     ww = torch.from_numpy(np.concatenate((w1,w2),axis=0).astype(np.float32)).unsqueeze(1).to(device)
     print(w.shape,ww.shape)
-    w = torch.cat((w,ww),dim = 0)
+    wu = torch.cat((wu,ww),dim = 0)
+    w = wu/torch.sum(wu)
 
 
     os.chdir("../..")
-    figname_q0 = f'ala2/fig/q0_{itr}_{l}.png'
-    filename_dq0 = f'ala2/fig/dq0_{itr}_{l}.png'
+    figname_q0 = f'ala2/fig/q0_{itr}_{l}_summation.png'
+    filename_dq0 = f'ala2/fig/dq0_{itr}_{l}_summation.png'
     plt.clf()
     
     draw_q0_dq0(q,360,data_biased_itr,figname_q0,filename_dq0,device=device,q_old = q_old)

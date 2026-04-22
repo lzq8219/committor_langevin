@@ -35,34 +35,34 @@ import logging
 gamma_data_label_file = "ala2/bias_gamma_data_label.txt"
 gammas, data_labels = get_gamma_data_label(gamma_data_label_file)
 
+for l in [-1,-3,-5,-7,-9]:
+    for gamma, data_label in zip(gammas, data_labels):
 
-for gamma, data_label in zip(gammas, data_labels):
+        filename = f'./biased_gamma{gamma}_{data_label}/bias.sh'
+        plumed_file = f'./biased_gamma{gamma}_{data_label}/plumed_q0.dat'
+        itr_path = f'./biased_gamma{gamma}_{data_label}'
+        long_C7ax_path_itr = f'./biased_gamma{gamma}_{data_label}/long_C7ax'
+        long_C7eq_path_itr = f'./biased_gamma{gamma}_{data_label}/long_C7eq'
+        distilling_path = f"../model/distilling_gamma{gamma}"
+        model_file = f"{distilling_path}/gamma{gamma}_{data_label}.pth"
+        os.chdir('ala2/simulation')
 
-    filename = f'./biased_gamma{gamma}_{data_label}/bias.sh'
-    plumed_file = f'./biased_gamma{gamma}_{data_label}/plumed_q0.dat'
-    itr_path = f'./biased_gamma{gamma}_{data_label}'
-    long_C7ax_path_itr = f'./biased_gamma{gamma}_{data_label}/long_C7ax'
-    long_C7eq_path_itr = f'./biased_gamma{gamma}_{data_label}/long_C7eq'
-    distilling_path = f"../model/distilling_gamma{gamma}"
-    model_file = f"{distilling_path}/gamma{gamma}_{data_label}.pth"
-    os.chdir('ala2/simulation')
+        if not os.path.exists(itr_path):
+            os.makedirs(itr_path)
 
-    if not os.path.exists(itr_path):
-        os.makedirs(itr_path)
+        if not os.path.exists(long_C7ax_path_itr):
+            os.makedirs(long_C7ax_path_itr)
 
-    if not os.path.exists(long_C7ax_path_itr):
-        os.makedirs(long_C7ax_path_itr)
+        if not os.path.exists(long_C7eq_path_itr):
+            os.makedirs(long_C7eq_path_itr)
+        write_bias_file(filename,long_C7eq_path_itr,long_C7ax_path_itr,model_file,plumed_file)
+        write_plumed_file(plumed_file,long_C7ax_path_itr,model_file,l = -5)
 
-    if not os.path.exists(long_C7eq_path_itr):
-        os.makedirs(long_C7eq_path_itr)
-    write_bias_file(filename,long_C7eq_path_itr,long_C7ax_path_itr,model_file,plumed_file)
-    write_plumed_file(plumed_file,long_C7ax_path_itr,model_file,l = -5)
-
-    cmd0 = f"chmod +x {filename}"
-    cmd1 = f"bash {filename}"
-    subprocess.run(cmd0,shell=True)
-    subprocess.run(cmd1,shell=True)
-    
+        cmd0 = f"chmod +x {filename}"
+        cmd1 = f"bash {filename}"
+        subprocess.run(cmd0,shell=True)
+        subprocess.run(cmd1,shell=True)
+        
 
 
-    os.chdir("../..")
+        os.chdir("../..")

@@ -56,4 +56,6 @@ d44: DISTANCE ATOMS=17,19
 #C7ax phi=1.30899,psi=-1.0471 
 restraint: RESTRAINT ARG=phi,psi AT=1.30899,-1.0471  KAPPA=100.0,100.0 
 
+
+
 PRINT ARG=phi,psi,restraint.bias FILE=COLVAR_initial_C7ax STRIDE=100

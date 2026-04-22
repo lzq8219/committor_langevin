@@ -86,11 +86,12 @@ class simple_function_model(nn.Module):
 
 
 class FunctionModel(nn.Module):
-    def __init__(self, layer_sizes, activation='linear'):
+    def __init__(self, layer_sizes, activation='linear',output_scale = 1):
         super(FunctionModel, self).__init__()
         self.layers = nn.ModuleList()
         self.layer_sizes = layer_sizes
         self.activation = activation
+        self.output_scale=1
         for i in range(len(layer_sizes) - 1):
             # self.layers.append(ResidualBlock(layer_sizes[i]))
 
@@ -119,7 +120,7 @@ class FunctionModel(nn.Module):
     def forward(self, x: torch.float32):
         for layer in self.layers:
             x = layer(x)
-        return x
+        return x*self.output_scale
 
     def initialize_weights(self):
         for layer in self.layers:
@@ -132,11 +133,12 @@ class FunctionModel(nn.Module):
 
 
 class FunctionModelWithDescriptor(nn.Module):
-    def __init__(self, layer_sizes, activation='linear', using_descriptor=False):
+    def __init__(self, layer_sizes, activation='linear', using_descriptor=False,output_scale=1):
         super(FunctionModelWithDescriptor, self).__init__()
         self.layers = nn.ModuleList()
         self.layer_sizes = layer_sizes
         self.activation = activation
+        self.output_scale=output_scale
         for i in range(len(layer_sizes) - 1):
             # self.layers.append(ResidualBlock(layer_sizes[i]))
 
@@ -174,7 +176,7 @@ class FunctionModelWithDescriptor(nn.Module):
             x = self.descriptor(x)
         for layer in self.layers:
             x = layer(x)
-        return x
+        return x*self.output_scale
 
     def initialize_weights(self):
         for layer in self.layers:
@@ -213,6 +215,8 @@ def load_model(model_path, config_path, device='cpu'):
     model.load_state_dict(torch.load(model_path, map_location=device))
     print(f"Model loaded from {model_path}")
     return model
+
+
 
 
 if __name__ == '__main__':

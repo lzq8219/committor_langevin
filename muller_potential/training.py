@@ -32,12 +32,13 @@ import logging
 
 
 ndim = 2
-gamma = 25
+gamma = 5
 kbt = 5
 lam = 10
 eta = 10
 omega = gamma
-
+data_label = 'adaptive'
+#data_label = 'no_adaptive'
 args = {
         "ndim": ndim,
         "gamma": gamma,
@@ -50,7 +51,7 @@ args = {
 
 
 logging.basicConfig(
-    filename=f'muller_potential/log/gamma{gamma}_kbt{kbt}.log',        # Specify the log file name
+    filename=f'muller_potential/log/gamma{gamma}_kbt{kbt}_{data_label}.log',        # Specify the log file name
     filemode='w',              # Use append mode ('a') or overwrite mode ('w')
     format='%(asctime)s - %(levelname)s - %(message)s',  # Log message format
     level=logging.INFO          # Set the logging level
@@ -71,7 +72,7 @@ layers = [2*ndim,8,64,64,64,64,8,1]
 activ  = 'sigmoid'
 
 alpha_t = 1
-T = 200
+T = 300
 Nt = int(T/alpha_t)
 Nsteps = 20
 lr = 1e-3
@@ -88,7 +89,7 @@ x = torch.cat((x1,x2),dim=1)
 potential = MullerPotential()
 
 UU = potential.potential(x).numpy()
-x = x[UU<100,:]
+x = x[UU<0,:]
 N_sample = x.shape[0]
 print(f"N_Sample: {N_sample}")
 
@@ -122,12 +123,12 @@ total_tot_loss_list = []
 
 q = FunctionModel(layer_sizes=layers,activation=activ)
 
-'''
+
 model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}.pth'
 config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}.txt'
 
-q = load_model(model_file,config_file)
-'''
+#q = load_model(model_file,config_file)
+
 
 #model_file = f'./model/gamma10_kbt0.5_1I.pth'
 #config_file = f'./config/gamma10_kbt0.5_1I.txt'
@@ -145,8 +146,8 @@ logging.info(f'Using device: {device}')
 # In[12]:
 
 
-args['lam'] = 0.1
-args['eta'] = 0.1
+args['lam'] = 2
+args['eta'] = 2
 print(device)
 
 
@@ -161,11 +162,20 @@ batch_size = 2**26
 subtrain_idx = 0
 #eta = 10
 lr = 1e-4
-adaptive = True
-beta = 0.8
-alpha_beta = 0.9
-pinn_weight = 0.9 
-grad_weight = 0.05
+if data_label == 'no_adaptive':
+    adaptive = False
+else:
+    adaptive = True
+if data_label == 'no_adaptive':
+    beta = 1
+    alpha_beta = 0.
+    pinn_weight = 0 
+    grad_weight = 0
+else:
+    beta = 0.8
+    alpha_beta = 0.95
+    pinn_weight = 0.5 
+    grad_weight = 0.2
 NNt = Nt *1
 NNsteps = Nsteps * 1
 # kbt = 1
@@ -273,9 +283,9 @@ axs[3].legend()
 axs[3].grid() 
 
 # Adjust layout  
-plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
-model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.pth'
-config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.txt'
+plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.png',dpi = 300, bbox_inches='tight')
+model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.pth'
+config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.txt'
 save_model(q,model_file,config_file)
 
 # In[15]:
@@ -300,7 +310,7 @@ plt.title('log potential of the sampling')
 plt.xlabel('x1')
 plt.ylabel('x2')
 plt.colorbar()
-plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 
 
@@ -310,239 +320,196 @@ plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subt
 
 q.to(device)
 data = data.to(device)
-batch_size = 2**26
-#eta = 10
-lr = 5e-5
-#eta = 1
-#lam = 1
-#kbt = .5
-subtrain_idx += 1
-NNsteps = Nsteps *3
-NNt = Nt * 5 
-adaptive = True
-beta = 0.8
-alpha_beta = 0.95
-pinn_weight = 0.9 
-grad_weight = 0.05
-args['lam'] = 2
-args['eta'] = 2
+
+for i in range(10):
+    batch_size = 2**26
+    #eta = 10
+    lr = 1e-4/1.2**i
+    #eta = 1
+    #lam = 1
+    #kbt = .5
+    subtrain_idx += 1
+    if i < 2:
+        NNsteps = Nsteps 
+    else:
+        NNsteps = Nsteps *3
+    NNt = Nt 
+    if data_label == 'no_adaptive':
+        adaptive = False
+    else:
+        adaptive = True
+    if data_label == 'no_adaptive':
+        beta = 1
+        alpha_beta = 0.
+        pinn_weight = 0 
+        grad_weight = 0
+    else:
+        beta = 0.8
+        alpha_beta = 0.95
+        pinn_weight = 0.5 
+        grad_weight = 0.2
+    args['lam'] = 4
+    args['eta'] = 4
 
 
-logging.info(f'Subtraining index: {subtrain_idx}')
-logging.info(f'Batch size: {batch_size}')
-logging.info(f'Learning rate: {lr}')
-logging.info(f'Number of training steps: {NNsteps}')
-logging.info(f'Number of time steps: {NNt}')
-logging.info(f'Args: {args}')
-if adaptive:
-    logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
-loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
-                                          data=data,
-                                          w=w,
-                                          batchsize=batch_size,
-                                          data_b=data_b,
-                                          label_b=label_b,
-                                          alpha_b=100,
-                                          lr = lr,
-                                          num_tsteps=NNt,
-                                          num_epoches=Nsteps,
-                                          device=device,
-                                          args=args,
-                                          dU=dU,
-                                          checkpoint=10,
-                                          xdim=ndim,
-                                          vdim=ndim,
-                                          adaptive=True,
-                                          beta=beta,
-                                          alpha_beta = alpha_beta,
-                                          pinn_weight = pinn_weight, 
-                                          grad_weight = grad_weight,
-                                          alpha_l2 = 1e-6)
+    logging.info(f'Subtraining index: {subtrain_idx}')
+    logging.info(f'Batch size: {batch_size}')
+    logging.info(f'Learning rate: {lr}')
+    logging.info(f'Number of training steps: {NNsteps}')
+    logging.info(f'Number of time steps: {NNt}')
+    logging.info(f'Args: {args}')
+    if adaptive:
+        logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
+    loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
+                                            data=data,
+                                            w=w,
+                                            batchsize=batch_size,
+                                            data_b=data_b,
+                                            label_b=label_b,
+                                            alpha_b=100,
+                                            lr = lr,
+                                            num_tsteps=NNt,
+                                            num_epoches=Nsteps,
+                                            device=device,
+                                            args=args,
+                                            dU=dU,
+                                            checkpoint=10,
+                                            xdim=ndim,
+                                            vdim=ndim,
+                                            adaptive=True,
+                                            beta=beta,
+                                            alpha_beta = alpha_beta,
+                                            pinn_weight = pinn_weight, 
+                                            grad_weight = grad_weight,
+                                            alpha_l2 = 1e-6)
+
+for i in range(5):
+    batch_size = 2**26
+    #eta = 10
+    lr = 1e-4/1.2**(i+10)
+    #eta = 1
+    #lam = 1
+    #kbt = .5
+    subtrain_idx += 1
+
+    NNsteps = Nsteps *5
+    NNt = Nt 
+    if data_label == 'no_adaptive':
+        adaptive = False
+    else:
+        adaptive = True
+    if data_label == 'no_adaptive':
+        beta = 1
+        alpha_beta = 0.
+        pinn_weight = 0 
+        grad_weight = 0
+    else:
+        beta = 0.8
+        alpha_beta = 0.95
+        pinn_weight = 0.5 
+        grad_weight = 0.2
+    args['lam'] = 10
+    args['eta'] = 10
+
+
+    logging.info(f'Subtraining index: {subtrain_idx}')
+    logging.info(f'Batch size: {batch_size}')
+    logging.info(f'Learning rate: {lr}')
+    logging.info(f'Number of training steps: {NNsteps}')
+    logging.info(f'Number of time steps: {NNt}')
+    logging.info(f'Args: {args}')
+    if adaptive:
+        logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
+    loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
+                                            data=data,
+                                            w=w,
+                                            batchsize=batch_size,
+                                            data_b=data_b,
+                                            label_b=label_b,
+                                            alpha_b=100,
+                                            lr = lr,
+                                            num_tsteps=NNt,
+                                            num_epoches=Nsteps,
+                                            device=device,
+                                            args=args,
+                                            dU=dU,
+                                            checkpoint=10,
+                                            xdim=ndim,
+                                            vdim=ndim,
+                                            adaptive=True,
+                                            beta=beta,
+                                            alpha_beta = alpha_beta,
+                                            pinn_weight = pinn_weight, 
+                                            grad_weight = grad_weight,
+                                            alpha_l2 = 1e-6)
 
 
 # In[17]:
 
 
-t = np.arange(len(loss_list))  # Time values  
+    t = np.arange(len(loss_list))  # Time values  
 
 
-# Create a figure with 3 subplots  
-fig, axs = plt.subplots(4, 1, figsize=(10, 20))  
+    # Create a figure with 3 subplots  
+    fig, axs = plt.subplots(4, 1, figsize=(10, 20))  
 
-# Plot training loss  
-axs[0].plot(t, loss_list, label='Training Loss', color='blue')  
-axs[0].set_title('Training Loss vs Time')  
-axs[0].set_xlabel('Time')  
-axs[0].set_ylabel('Loss')  
-axs[0].legend()  
-axs[0].grid()  
+    # Plot training loss  
+    axs[0].plot(t, loss_list, label='Training Loss', color='blue')  
+    axs[0].set_title('Training Loss vs Time')  
+    axs[0].set_xlabel('Time')  
+    axs[0].set_ylabel('Loss')  
+    axs[0].legend()  
+    axs[0].grid()  
 
-# Plot batch loss  
-axs[1].plot(t, b_loss_list, label='Batch Loss', color='orange')  
-axs[1].set_title('Boundary Loss vs Time')  
-axs[1].set_xlabel('Time')  
-axs[1].set_ylabel('Loss')  
-axs[1].legend()  
-axs[1].grid()  
+    # Plot batch loss  
+    axs[1].plot(t, b_loss_list, label='Batch Loss', color='orange')  
+    axs[1].set_title('Boundary Loss vs Time')  
+    axs[1].set_xlabel('Time')  
+    axs[1].set_ylabel('Loss')  
+    axs[1].legend()  
+    axs[1].grid()  
 
-# Plot total loss  
-axs[2].plot(t, tot_loss_list, label='Total Loss', color='green')  
-axs[2].set_title('Total Loss vs Time')  
-axs[2].set_xlabel('Time')  
-axs[2].set_ylabel('Loss')  
-axs[2].legend()  
-axs[2].grid()  
+    # Plot total loss  
+    axs[2].plot(t, tot_loss_list, label='Total Loss', color='green')  
+    axs[2].set_title('Total Loss vs Time')  
+    axs[2].set_xlabel('Time')  
+    axs[2].set_ylabel('Loss')  
+    axs[2].legend()  
+    axs[2].grid()  
 
-axs[3].plot(t, pinn_loss_list, label='Pinn Loss', color='red')  
-axs[3].set_title('Pinn Loss vs Time')  
-axs[3].set_xlabel('Time')  
-axs[3].set_ylabel('Loss')  
-axs[3].legend()  
-axs[3].grid() 
+    axs[3].plot(t, pinn_loss_list, label='Pinn Loss', color='red')  
+    axs[3].set_title('Pinn Loss vs Time')  
+    axs[3].set_xlabel('Time')  
+    axs[3].set_ylabel('Loss')  
+    axs[3].legend()  
+    axs[3].grid() 
 
-total_loss_list += loss_list
-total_b_loss_list += b_loss_list
-total_pinn_loss_list += pinn_loss_list
-total_tot_loss_list += tot_loss_list
+    total_loss_list += loss_list
+    total_b_loss_list += b_loss_list
+    total_pinn_loss_list += pinn_loss_list
+    total_tot_loss_list += tot_loss_list
 
-# Adjust layout  
-plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
-model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.pth'
-config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.txt'
-save_model(q,model_file,config_file)
-
-h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
-h = h.flatten()
-cc = np.log(h[h > 0])
-thread = -20
-cc[cc < thread] = thread
-fig = plt.figure(figsize=(5, 5))
-plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
-            c=cc, cmap='turbo', s=1)
-plt.title('log potential of the sampling')
-plt.xlabel('x1')
-plt.ylabel('x2')
-plt.colorbar()
-plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
-
-# In[18]:
+    # Adjust layout  
+    plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.png',dpi = 300, bbox_inches='tight')
+    model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.pth'
+    config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.txt'
+    save_model(q,model_file,config_file)
 
 
 
-
-# In[19]:
-
-
-
-
-# In[ ]:
-
-
-q.to(device)
-data = data.to(device)
-w = w.to(device)
-batch_size = 2**26
-#eta = 10
-lr = 1e-5
-subtrain_idx += 1
-NNsteps = Nsteps * 3
-NNt = Nt * 5 
-adaptive = True
-beta = 0.8
-alpha_beta = 0.99
-pinn_weight = 0.9 
-grad_weight = 0.05
-args['lam'] = 2
-args['eta'] = 2
-
-logging.info(f'Subtraining index: {subtrain_idx}')
-logging.info(f'Batch size: {batch_size}')
-logging.info(f'Learning rate: {lr}')
-logging.info(f'Number of training steps: {NNsteps}')
-logging.info(f'Number of time steps: {NNt}')
-logging.info(f'Args: {args}')
-if adaptive:
-    logging.info(f'Adaptive sampling enabled, beta: {beta}, pinn_weight: {pinn_weight}, grad_weight: {grad_weight}')
-#eta = 1
-#lam = 1
-#kbt = .5
-loss_list,b_loss_list,tot_loss_list,pinn_loss_list=train_resample(model=q,
-                                          data=data,
-                                          w=w,
-                                          batchsize=batch_size,
-                                          data_b=data_b,
-                                          label_b=label_b,
-                                          alpha_b=100,
-                                          lr = lr,
-                                          num_tsteps=NNt,
-                                          num_epoches=NNsteps,
-                                          device=device,
-                                          args=args,
-                                          dU=dU,
-                                          checkpoint=10,
-                                          xdim=ndim,
-                                          vdim=ndim,
-                                          adaptive=True,
-                                          beta=beta,
-                                          alpha_beta = alpha_beta,
-                                          pinn_weight = pinn_weight, 
-                                          grad_weight = grad_weight,
-                                          alpha_l2 = 1e-6)
-
-
-
-
-# In[ ]:
-
-
-# Length of the data  
-t = np.arange(len(loss_list))  # Time values  
-
-
-# Create a figure with 3 subplots  
-fig, axs = plt.subplots(4, 1, figsize=(10, 20))  
-
-# Plot training loss  
-axs[0].plot(t, loss_list, label='Training Loss', color='blue')  
-axs[0].set_title('Training Loss vs Time')  
-axs[0].set_xlabel('Time')  
-axs[0].set_ylabel('Loss')  
-axs[0].legend()  
-axs[0].grid()  
-
-# Plot batch loss  
-axs[1].plot(t, b_loss_list, label='Batch Loss', color='orange')  
-axs[1].set_title('Boundary Loss vs Time')  
-axs[1].set_xlabel('Time')  
-axs[1].set_ylabel('Loss')  
-axs[1].legend()  
-axs[1].grid()  
-
-# Plot total loss  
-axs[2].plot(t, tot_loss_list, label='Total Loss', color='green')  
-axs[2].set_title('Total Loss vs Time')  
-axs[2].set_xlabel('Time')  
-axs[2].set_ylabel('Loss')  
-axs[2].legend()  
-axs[2].grid()  
-
-axs[3].plot(t, pinn_loss_list, label='Pinn Loss', color='red')  
-axs[3].set_title('Pinn Loss vs Time')  
-axs[3].set_xlabel('Time')  
-axs[3].set_ylabel('Loss')  
-axs[3].legend()  
-axs[3].grid() 
-
-total_loss_list += loss_list
-total_b_loss_list += b_loss_list
-total_pinn_loss_list += pinn_loss_list
-total_tot_loss_list += tot_loss_list
-
-# Adjust layout  
-plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight') 
-model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.pth'
-config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.txt'
-save_model(q,model_file,config_file)
+    h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
+    h = h.flatten()
+    cc = np.log(h[h > 0])
+    thread = -20
+    cc[cc < thread] = thread
+    fig = plt.figure(figsize=(5, 5))
+    plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
+                c=cc, cmap='turbo', s=1)
+    plt.title('log potential of the sampling')
+    plt.xlabel('x1')
+    plt.ylabel('x2')
+    plt.colorbar()
+    plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 
 t = np.arange(len(total_loss_list))  # Time values  
@@ -582,28 +549,18 @@ axs[3].set_ylabel('Loss')
 axs[3].legend()  
 axs[3].grid() 
 
+total_loss_list += loss_list
+total_b_loss_list += b_loss_list
+total_pinn_loss_list += pinn_loss_list
+total_tot_loss_list += tot_loss_list
 
 # Adjust layout  
-plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_total.png',dpi = 300, bbox_inches='tight') 
-model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}.pth'
-config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}.txt'
+plt.savefig(f'muller_potential/fig/loss_gamma{gamma}_kbt{kbt}_total_{data_label}.png',dpi = 300, bbox_inches='tight')
+model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}_total_{subtrain_idx}_{data_label}.pth'
+config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}_total_{subtrain_idx}_{data_label}.txt'
 save_model(q,model_file,config_file)
 
-fig = plt.figure(figsize=(5, 5))
-h = hist_reweight(data[:,:ndim].cpu().numpy(), w.cpu().numpy(), -2, 2, -2, 2, ngrid)
-h = h.flatten()
-cc = np.log(h[h > 0])
-thread = -20
-cc[cc < thread] = thread
-plt.scatter(g[:, 0][h > 0], g[:, 1][h > 0],
-            c=cc, cmap='turbo', s=1)
-plt.title('log potential of the sampling')
-plt.xlabel('x1')
-plt.ylabel('x2')
-plt.colorbar()
-plt.savefig(f'muller_potential/fig/sampling_gamma{gamma}_kbt{kbt}_subtrain_{subtrain_idx}.png',dpi = 300, bbox_inches='tight')
 
-# In[ ]:
 
 
 q.to(device)
@@ -682,7 +639,7 @@ plt.title('Muller potential')
 plt.xlabel('x1')
 plt.ylabel('x2')
 plt.colorbar()
-plt.savefig(f'muller_potential/fig/ave_muller_potential_gamma{gamma}_kbt{kbt}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/ave_muller_potential_gamma{gamma}_kbt{kbt}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 
 # In[ ]:
@@ -765,7 +722,7 @@ for i in range(mm):
         axs[i, j].set_ylabel('x2')
         fig.colorbar(sc, ax=axs[i,j])
 
-plt.savefig(f'muller_potential/fig/NN_gamma{gamma}_kbt{kbt}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/NN_gamma{gamma}_kbt{kbt}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 # In[ ]:
 
@@ -808,7 +765,7 @@ l2_norm /= mm*nn
 logging.info(f'Absolute error: {l2_loss**0.5}')
 logging.info(f'Relative error: {l2_loss**0.5/l2_norm**0.5}')
 logging.info(f'l2 norm: {l2_norm**0.5}')
-plt.savefig(f'muller_potential/fig/error_gamma{gamma}_kbt{kbt}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/error_gamma{gamma}_kbt{kbt}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 
 
@@ -841,7 +798,7 @@ for i in range(mm):
         axs[i, j].set_ylabel('x2')
         fig.colorbar(sc, ax=axs[i,j])
 
-plt.savefig(f'muller_potential/fig/pinn_gamma{gamma}_kbt{kbt}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/pinn_gamma{gamma}_kbt{kbt}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 # In[ ]:
 
@@ -945,7 +902,7 @@ plt.title('$|q_0^{ref} - q_0^{NN}|$')
 plt.xlabel('x1')
 plt.ylabel('x2')
 plt.colorbar()
-plt.savefig(f'muller_potential/fig/ave_error_gamma{gamma}_kbt{kbt}.png',dpi = 300, bbox_inches='tight')
+plt.savefig(f'muller_potential/fig/ave_error_gamma{gamma}_kbt{kbt}_{data_label}.png',dpi = 300, bbox_inches='tight')
 
 
 # In[ ]:
@@ -991,14 +948,4 @@ plt.ylabel('q')
 plt.title(f'slice with v={vslice}')
 plt.show()
 '''
-
-
-
-
-# In[ ]:
-
-
-model_file = f'./muller_potential/model/gamma{gamma}_kbt{kbt}.pth'
-config_file = f'./muller_potential/config/gamma{gamma}_kbt{kbt}.txt'
-save_model(q,model_file,config_file)
 

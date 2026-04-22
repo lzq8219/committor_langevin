@@ -65,7 +65,8 @@ pcoupl                  = no                 ; Disable pressure coupling for NVT
 pbc                     = xyz                ; Fully periodic boundary conditions
 
 ; Miscellaneous
-gen_vel                 = no                ; Generate velocities at the beginning
+gen-vel                 = yes                ; Generate velocities at the beginning
+gen-temp                = 300    
 '''
     with open(filename, 'w') as f:
         f.write(file)
@@ -75,7 +76,7 @@ def write_shooting_file(filename,gro_file, mdp_file,tpr_file,output_name,plumed_
     file = f'''
 # Run the first command
 gmx_mpi grompp -f {mdp_file} -c {gro_file} -p topol.top -o {tpr_file}
-OMP_NUM_THREADS=1 gmx_mpi mdrun -s {tpr_file} -deffnm {output_name} 
+OMP_NUM_THREADS=1 gmx_mpi mdrun -s {tpr_file} -deffnm {output_name} -nb cpu
 plumed driver --mf_trr {output_name}.trr --plumed {plumed_file}
 '''
     with open(filename, 'w') as f:
@@ -137,7 +138,7 @@ def shooting_simulation(workdir,num_simulations,
         write_shooting_file(shooting_file,output_name+".gro", mdp_file,tpr_file,output_name,plumed_file)
         while not shooting:
             nth_step += 1
-            print(f"  Running short MD step {nth_step+1}")
+            print(f"Running short MD step {nth_step+1}")
             if nth_step > max_steps:
                 break
             
@@ -179,8 +180,10 @@ def shooting_simulation(workdir,num_simulations,
                 N_simulation += 1
                 if idx_eq < idx_ax:
                     shooting_record += 0
+                    print('Shooting: 0!')
                 else:
                     shooting_record += 1
+                    print('Shooting: 1!')
                 
         
 
@@ -215,7 +218,7 @@ if __name__ == "__main__":
     c_C7eq = np.array([-1.46, 1.3305264])
     c_C7ax = np.array([1.01, -0.71])
     gamma = args.gamma
-    nsteps = 100000
+    nsteps = 10000
     num_simulations = args.num_simulations
 
     shooting_record,N_simulation = shooting_simulation(workdir,num_simulations,

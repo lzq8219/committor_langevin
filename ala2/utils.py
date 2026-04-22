@@ -283,24 +283,28 @@ def compute_dihedral_cossin(coords):
     b2_norm1 = b2 / b2.norm(dim=1, keepdim=True)
 
     # Calculate perpendicular vectors to the planes
-    v1 = torch.cross(b1, b2, dim=1)  # Plane 1: Points 1, 2, 3
-    v2 = torch.cross(b2, b3, dim=1)             # Plane 2: Points 2, 3, 4
+    n1 = torch.cross(b1, b2, dim=1)  # Plane 1: Points 1, 2, 3
+    n2 = torch.cross(b2, b3, dim=1)             # Plane 2: Points 2, 3, 4
 
-    # Normalize v1 and v2
-    v1_norm1 = v1 / v1.norm(dim=1, keepdim=True)
-    v2_norm1 = v2 / v2.norm(dim=1, keepdim=True)
+    # Normalize n1 and n2
+    n1_norm1 = n1 / n1.norm(dim=1, keepdim=True)
+
+    n2_norm1 = n2 / n2.norm(dim=1, keepdim=True)
 
     # Calculate the angle between v1 and v2
-    cos_angle = torch.sum(v1_norm1 * v2_norm1, dim=1)
-    # Clamp for numerical stability
-    cos_angle = torch.clamp(cos_angle, -1.0, 1.0)
+    cos_angle = torch.sum(n1_norm1 * n2_norm1, dim=1)
 
     # Calculate the sign of the angle using the direction of b2
-    sign = torch.sign(torch.sum(v1_norm1 * b3, dim=1))
 
     # Dihedral angle (radians)
-    sin_angle = sign * torch.sqrt(1 - cos_angle**2)
-    dihedral = sign * torch.arccos(cos_angle)
+    sin_angle = torch.sum(
+        b2_norm1 *
+        torch.cross(
+            n1_norm1,
+            n2_norm1,
+            dim=1),
+        dim=1)
+    dihedral = torch.atan2(sin_angle,cos_angle)
 
     return cos_angle, sin_angle, dihedral
 
@@ -473,13 +477,14 @@ class NNphipsi(FunctionModelWithDescriptor):
 
 class NNphipsi_overdamped(FunctionModelWithDescriptor):
     def __init__(self, layer_sizes, n_atoms, phi_group,
-                 psi_group, activation='sigmoid'):
+                 psi_group, activation='sigmoid',output_scale=1):
         super(
             NNphipsi_overdamped,
             self).__init__(
             layer_sizes,
             activation=activation,
-            using_descriptor=True)
+            using_descriptor=True,
+            output_scale=output_scale)
         self.phi_group = phi_group
         self.psi_group = psi_group
         self.n_atoms = n_atoms
@@ -502,7 +507,7 @@ class NNphipsi_overdamped(FunctionModelWithDescriptor):
     def d_forward(self, x):
         for layer in self.layers:
             x = layer(x)
-        return x
+        return x*self.output_scale
 
     def save(self, examples, config_filename,
              model_filename, is_description=False):
@@ -654,9 +659,11 @@ class NNd2_45(FunctionModelWithDescriptor):
         dx = x_i_group - x_j_group
         dv = v_i_group - v_j_group
         dx2 = torch.sum(dx**2, dim=2, keepdim=False)
-        dx2dt = torch.sum(2 * dx * dv, dim=2, keepdim=False)
+        r = torch.sqrt(dx2)
+        #dx2dt = torch.sum(2 * dx * dv, dim=2, keepdim=False)
+        drdt = torch.sum(dx * dv, dim=2, keepdim=False)/r
 
-        descriptors = torch.cat((dx2, dx2dt), dim=1)
+        descriptors = torch.cat((r, drdt), dim=1)
         # print(descriptors)
         return descriptors
 

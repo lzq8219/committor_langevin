@@ -78,7 +78,7 @@ Nv_sample = 1000
 
 batch_size = 2048 #not implement
 
-layers = [xdim_reduce,8,64,64,8,1]
+layers = [xdim_reduce,64,64,1]
 activ  = 'sigmoid'
 
 alpha_t = 1
@@ -156,10 +156,12 @@ data = torch.cat((long_C7eq_xs,long_C7ax_xs), dim=0).to(device)
 #w2 = np.exp(kbt**-1 * w2)
 #w2 = w2/np.sum(w2)
 #w = torch.from_numpy(np.concatenate((w1,w2),axis=0).astype(np.float32)).unsqueeze(1)
-w = torch.ones(data.shape[0], dtype=torch.float32).unsqueeze(1)
-w = w/torch.sum(w)*2
+wu = torch.ones(data.shape[0], dtype=torch.float32).unsqueeze(1)
+wu = wu/torch.sum(wu)
+w = wu
 w=w.to(device)
-l=-kbt
+wu = wu.to(device)
+l=-3.5
 for ii in range(itr+1):
     if ii == 0:
         continue
@@ -192,7 +194,8 @@ for ii in range(itr+1):
     w2 = w2/np.sum(w2)
     ww = torch.from_numpy(np.concatenate((w1,w2),axis=0).astype(np.float32)).unsqueeze(1).to(device)
     print(w.shape,ww.shape)
-    w = torch.cat((w,ww),dim = 0)
+    w = torch.cat((wu,ww),dim = 0)
+    w = wu/torch.sum(wu)
 
 
     os.chdir("../..")
@@ -276,7 +279,7 @@ while True:
                                             xdim=ndim,
                                             vdim=ndim,
                                             checkpoint=10,
-                                            alpha_l2 = 1e-7)
+                                            alpha_l2 = 1e-3)
 
 
     loss_list,b_loss_list,tot_loss_list=train_overdamped(model=q,
@@ -295,7 +298,7 @@ while True:
                                             xdim=ndim,
                                             vdim=ndim,
                                             checkpoint=10,
-                                            alpha_l2 = 1e-7)
+                                            alpha_l2 = 1e-3)
     total_loss_list += loss_list
     total_b_loss_list += b_loss_list
     total_tot_loss_list += tot_loss_list
@@ -396,7 +399,7 @@ while True:
                                             checkpoint=10,
                                             xdim=ndim,
                                             vdim=ndim,
-                                            alpha_l2 = 1e-7)
+                                            alpha_l2 = 1e-3)
 
 
     # In[17]:
@@ -501,7 +504,7 @@ while True:
                                             checkpoint=10,
                                             xdim=ndim,
                                             vdim=ndim,
-                                            alpha_l2 = 1e-7)
+                                            alpha_l2 = 1e-3)
 
 
 
@@ -608,7 +611,7 @@ while True:
         content = f'''em_C7eq.tpr plumed_C7eq_{l}.dat {model_file} {l} COLVAR_{l} {long_C7eq_path_itr}
 em_C7ax.tpr plumed_C7ax_{l}.dat {model_file} {l} COLVAR_{l} {long_C7ax_path_itr}'''
         f.write(content)
-    _cmd = " parallel -j3 --env PIN_CORES --env OMP_NUM_THREADS --joblog parallel.log 'PARALLEL_SLOT={%} ./biased_simulation.sh {1} {2} {3} {4} {5} {6}'"
+    _cmd = " parallel -j10 --env PIN_CORES --env OMP_NUM_THREADS --joblog parallel.log 'PARALLEL_SLOT={%} ./biased_simulation.sh {1} {2} {3} {4} {5} {6}'"
     cmd0 = f"cat {filename} |"+_cmd
     print(cmd0)
     subprocess.run(cmd0,shell=True)
@@ -632,7 +635,9 @@ em_C7ax.tpr plumed_C7ax_{l}.dat {model_file} {l} COLVAR_{l} {long_C7ax_path_itr}
     w2 = w2/np.sum(w2)
     ww = torch.from_numpy(np.concatenate((w1,w2),axis=0).astype(np.float32)).unsqueeze(1).to(device)
     print(w.shape,ww.shape)
-    w = torch.cat((w,ww),dim = 0)
+    wu = torch.cat((wu,ww),dim = 0)
+    w = wu/torch.sum(wu)
+
 
 
     os.chdir("../..")
