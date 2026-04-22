@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrrrrrrrrrr}
+\toprule
+ & kbt & gamma & l2 loss & l2 loss pinn & l1 loss & l1 loss pinn & linf loss & linf loss pinn & l2 pinn loss & l2 pinn loss pinn & l1 pinn loss & l1 pinn loss pinn & linf pinn loss & linf pinn loss pinn \\
+\midrule
+0 & 1.00e-01 & 2.00e-01 & 2.91e-04 & 2.83e-02 & 2.86e-06 & 2.52e-02 & 1.59e-01 & 7.39e-01 & 2.47e-03 & 3.46e-02 & 1.85e-05 & 2.54e-02 & 1.44e+00 & 7.39e-01 \\
+1 & 1.00e-01 & 1.00e+00 & 2.65e-04 & 3.90e-02 & 2.62e-05 & 1.53e-02 & 8.44e-02 & 9.96e-01 & 1.19e-03 & 5.27e-02 & 8.25e-05 & 1.85e-02 & 4.35e-01 & 9.96e-01 \\
+2 & 1.00e-01 & 5.00e+00 & 5.76e-04 & 6.13e-04 & 2.33e-04 & 2.38e-04 & 6.39e-02 & 6.95e-02 & 5.76e-04 & 6.02e-04 & 1.68e-04 & 1.76e-04 & 1.35e-01 & 6.95e-02 \\
+3 & 1.00e-01 & 2.50e+01 & 8.59e-04 & 9.02e-04 & 4.44e-04 & 3.91e-04 & 4.61e-02 & 1.62e-01 & 3.09e-04 & 3.23e-04 & 1.30e-04 & 1.15e-04 & 1.98e-01 & 1.62e-01 \\
+\bottomrule
+\end{tabular}

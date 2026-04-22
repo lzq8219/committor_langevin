@@ -77,7 +77,7 @@ Nsteps = 20
 lr = 1e-3
 
 device = torch.device(
-                "cuda:1" if torch.cuda.is_available() else "cpu")
+                "cuda" if torch.cuda.is_available() else "cpu")
 
 
 xmin,xmax = -1.5,1.2

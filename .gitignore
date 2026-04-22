@@ -83,6 +83,7 @@ target/
 # IPython
 profile_default/
 ipython_config.py
+output_*
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -195,7 +196,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-\#*#
+/#*#
 *.cpt
 *.edr
 *.trr
@@ -204,3 +205,21 @@ bck.*
 gmx_mpi.*
 step*
 restrained/
+ala2/simulation/
+ala2/config
+ala2/model
+ala2/log
+ala2/fig
+**/*.png
+**/**/*.png
+*.png
+*.sty
+*.bib
+*.pdf
+*.aux
+*.fls
+*.bbl
+*.fdb_latexmk
+*.nav
+*.snm
+*.synctex.gz

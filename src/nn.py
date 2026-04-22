@@ -131,6 +131,59 @@ class FunctionModel(nn.Module):
 # Function to compute the integral I[v]
 
 
+class FunctionModelWithDescriptor(nn.Module):
+    def __init__(self, layer_sizes, activation='linear', using_descriptor=False):
+        super(FunctionModelWithDescriptor, self).__init__()
+        self.layers = nn.ModuleList()
+        self.layer_sizes = layer_sizes
+        self.activation = activation
+        for i in range(len(layer_sizes) - 1):
+            # self.layers.append(ResidualBlock(layer_sizes[i]))
+
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+
+            if i < len(layer_sizes) - 2:  # No activation after the last layer
+                self.layers.append(nn.Softplus())
+
+        if activation == 'sigmoid':
+            self.layers.append(nn.Sigmoid())
+        elif activation == 'tanh':
+            self.layers.append(nn.Tanh())
+        elif activation == 'gcdf':
+            self.layers.append(GaussianCDFActivation())
+        elif activation == 'relu':
+            self.layers.append(nn.ReLU())
+        elif activation == 'softplus':
+            self.layers.append(nn.Softplus())
+        elif activation == 'doublesigmoid':
+            self.layers.append(DoubleSigmoid())
+        elif activation == 'linear':
+            pass
+        else:
+            print('Warning! Activation function is unavailable! Using Linear by default!')
+
+        self.using_descriptor = using_descriptor
+
+
+    def descriptor(self, x: torch.float32):
+        pass
+
+
+    def forward(self, x: torch.float32):
+        if self.using_descriptor:
+            x = self.descriptor(x)
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def initialize_weights(self):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                # Initialize weights and biases to zero
+                nn.init.xavier_normal_(layer.weight)
+
+
+
 def save_model(model: FunctionModel, model_path, config_path):
     with open(config_path, 'w') as file:
         # Write the list of numbers
