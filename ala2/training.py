@@ -192,7 +192,6 @@ x_force = torch.autograd.grad(outputs=y,
 dU_biased = dU_biased + x_force
 data_biased = data_biased.detach().to('cpu')
 dU_biased = dU_biased.detach().to('cpu')
-
 del x_force,cv_force
 torch.cuda.empty_cache()
 
@@ -588,7 +587,6 @@ hyperparams_list.append(hyperparams_4)
 hyperparams_list.append(hyperparams_5)
 for i in range(5):
     hyperparams_list.append(hyperparams_6)
-
 
 gammas = []
 data_labels = []

@@ -2,7 +2,11 @@
 ;	File 'topol.top' was generated
 ;	By user: unknown (0)
 ;	On host: LAPTOP-D57E3CQR
+<<<<<<< HEAD
 ;	At date: Sun Aug 10 13:02:06 2025
+=======
+;	At date: Thu Sep 18 19:48:16 2025
+>>>>>>> origin/main
 ;
 ;	This is a standalone topology file
 ;
@@ -13,12 +17,20 @@
 ;	Data prefix:  /usr/local/gromacs
 ;	Working dir:  /mnt/d/TPT_transition_rate/Code/committor_langevin/ala2/simulation
 ;	Command line:
+<<<<<<< HEAD
 ;	  gmx_mpi pdb2gmx -f ala2.pdb -o ala2_processed.gro -p topol.top
+=======
+;	  gmx_mpi pdb2gmx -f ala2.pdb
+>>>>>>> origin/main
 ;	Force field was read from the standard GROMACS share directory.
 ;
 
 ; Include forcefield parameters
+<<<<<<< HEAD
 #include "amber99sb-ildn.ff/forcefield.itp"
+=======
+#include "amber99sb.ff/forcefield.itp"
+>>>>>>> origin/main
 
 [ moleculetype ]
 ; Name            nrexcl
@@ -216,7 +228,11 @@ Protein_chain_A     3
 #endif
 
 ; Include water topology
+<<<<<<< HEAD
 #include "amber99sb-ildn.ff/tip3p.itp"
+=======
+#include "amber99sb.ff/tip3p.itp"
+>>>>>>> origin/main
 
 #ifdef POSRES_WATER
 ; Position restraint for each water oxygen
@@ -226,7 +242,11 @@ Protein_chain_A     3
 #endif
 
 ; Include topology for ions
+<<<<<<< HEAD
 #include "amber99sb-ildn.ff/ions.itp"
+=======
+#include "amber99sb.ff/ions.itp"
+>>>>>>> origin/main
 
 [ system ]
 ; Name

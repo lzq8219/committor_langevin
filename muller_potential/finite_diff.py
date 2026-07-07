@@ -119,3 +119,12 @@ plt.xlabel('X-axis')
 plt.ylabel('Y-axis')
 plt.grid(True)
 plt.show()
+<<<<<<< HEAD
+=======
+
+mask_thr = 0.01
+mask = abs(v-0.5)<mask_thr
+points_masked = points[mask]
+np.savetxt(f'./muller_potential/model/fd_kbt{kbt}_masked.txt', points_masked)
+
+>>>>>>> origin/main

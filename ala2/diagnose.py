@@ -29,7 +29,12 @@ kbt = 300 * 0.0083144621  # kBT in kcal/mol
 num_heavy_atoms = heavy_atom_indices.shape[0]
 xdim = heavy_atom_indices.shape[0] * 3
 vdim = heavy_atom_indices.shape[0] * 3
+<<<<<<< HEAD
 
+=======
+xdim_reduce = 4
+vdim_reduce = 4
+>>>>>>> origin/main
 
 
 
@@ -183,6 +188,7 @@ def draw_q0_dq0(q0,n,data,figname_q0,filename_dq0,device=device,q_old = None,sho
 
     torch.cuda.empty_cache()
 
+<<<<<<< HEAD
 def extension(q0,gammas,data,vs,figname,mmm=5,nnn=5):
     data.requires_grad_(True)
     q_values = q0(data)
@@ -225,6 +231,8 @@ def extension(q0,gammas,data,vs,figname,mmm=5,nnn=5):
         plt.close()
 
 
+=======
+>>>>>>> origin/main
 def draw_q(qs,gammas,data_labels,data,step,num_v,mmm,nnn,vs,k,figname_mqs,figname_q_vslices,figname_q_datas,figname_mq_datas,figname_data_logps):
     num_models = len(qs)
     deg_to_rad = np.pi / 180.0
@@ -255,7 +263,10 @@ def draw_q(qs,gammas,data_labels,data,step,num_v,mmm,nnn,vs,k,figname_mqs,fignam
                         v = v.repeat(xs.shape[0],1)
                         data_phi_psi = torch.cat((xs,v),dim=1)
                         data_phi_psi = data_phi_psi.to(device)
+<<<<<<< HEAD
                         #print(data_phi_psi.shape)
+=======
+>>>>>>> origin/main
                         
                         with torch.no_grad():
                             for iiii in range(num_models):
@@ -697,4 +708,8 @@ if False:
 
     figname = "ala2/fig/shooting_results_gamma25_10.png"
     figname1 = "ala2/fig/shooting_results_gamma25_10_normal.png"
+<<<<<<< HEAD
     #draw_shooting(num_points,path,figname,figname1,bins=10)
+=======
+    #draw_shooting(num_points,path,figname,figname1,bins=10)
+>>>>>>> origin/main

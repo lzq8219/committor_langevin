@@ -137,7 +137,11 @@ for gamma,kbt in zip(gammas,kbts):
     
     UU = potential.potential(points).reshape(X.shape)
     UU[UU>0] = 0
+<<<<<<< HEAD
     points = points[uu<=30,:]
+=======
+    points = points[uu<=100,:]
+>>>>>>> origin/main
     '''
     c = np.arange(len(points))
     plt.scatter(points[:, 0], points[:, 1], c=c)

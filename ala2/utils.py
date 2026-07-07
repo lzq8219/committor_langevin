@@ -489,7 +489,6 @@ class NNphipsi_overdamped(FunctionModelWithDescriptor):
         self.psi_group = psi_group
         self.n_atoms = n_atoms
 
-
     def descriptor(self, x_and_v: torch.float32):
         x_and_v_n_d_3 = torch.reshape(
             x_and_v, (x_and_v.shape[0], self.n_atoms, 3))

@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{Background}{3}{0}{1}
+\beamer@sectionintoc {2}{Iterative form for underdamped langevin}{17}{0}{2}
+\beamer@sectionintoc {3}{Numerical examples}{24}{0}{3}
+\beamer@sectionintoc {4}{Conclusion}{45}{0}{4}

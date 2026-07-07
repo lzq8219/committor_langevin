@@ -1,0 +1,5 @@
+Layer size: 8, 4, 4, 2, 1
+Activation: sigmoid
+Natoms: 22
+Phi Group: 4, 6, 8, 14
+Psi Group: 6, 8, 14, 16

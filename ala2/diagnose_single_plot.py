@@ -28,7 +28,11 @@ mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
 # Figure size in inches (example for 2x6 grid)
+<<<<<<< HEAD
 nrows, ncols = 2, 4
+=======
+nrows, ncols = 5, 5
+>>>>>>> origin/main
 subplot_w, subplot_h = 8, 3
 fig = plt.figure(figsize=(ncols*subplot_w, nrows*subplot_h))
 axes = [fig.add_subplot(nrows, ncols, i+1) for i in range(nrows*ncols)]
@@ -481,7 +485,11 @@ if __name__ == '__main__':
     gammas, data_labels = get_gamma_data_label(gamma_data_label_file)
 
     quick_diagnose(axes,gammas,data_labels,layers,step = 10,use_distance=use_distance,mmm=5,nnn=5)
+<<<<<<< HEAD
     plt.savefig('ala2/fig/plot_metad_1.pdf', bbox_inches='tight')   # vector output
+=======
+    plt.savefig('ala2/fig/plot_metad.pdf', bbox_inches='tight')   # vector output
+>>>>>>> origin/main
 
 
 def draw_shooting(num_points,path,ax1,ax2,point_dir = 'point',shooting_result='result',bins = 20):

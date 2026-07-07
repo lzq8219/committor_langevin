@@ -1,0 +1,638 @@
+\documentclass{beamer}
+\usepackage{ctex, hyperref}
+\usepackage[T1]{fontenc}
+
+% other packages
+\usepackage{latexsym,amsmath,xcolor,multicol,booktabs,calligra}
+\usepackage{graphicx,pstricks,listings,stackengine}
+\usepackage{bbm}
+\usepackage{tikz}
+\usepackage{geometry}
+
+
+\author{\href{}{Liu Zhaoqi}}
+\institute{\href{}{School of Mathematical sciences , Peking University}}
+\title{Committor Function for Under-damped Langevian dynamics}
+
+\date{}
+\usepackage{Amr_Beamer}
+
+% defs
+\def\cmd#1{\texttt{\color{red}\footnotesize $\backslash$#1}}
+\def\env#1{\texttt{\color{blue}\footnotesize #1}}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+\definecolor{halfgray}{gray}{0.55}
+\newcommand{\p}{{\partial}}
+\newcommand{\kbt}{k_B T}
+\newcommand{\rr}{\mathbf{r}}
+\newcommand{\LLL}{\mathcal{L}}
+\newcommand{\AAA}{\mathcal{A}}
+\newcommand{\SSS}{\mathcal{S}}
+\newcommand{\KKK}{\mathcal{K}}
+\newcommand{\nnorm}[1]{\Vert #1 \Vert }
+\newcommand{\dd}{\ensuremath{\mathrm{d}}}
+\newcommand{\dt}{\ensuremath{\mathrm{d} t}}
+\newcommand{\real}{\mathbb{R}}
+\newcommand{\rred}{\textcolor{red}}
+
+\newcommand{\setframeborder}[2]{%
+  \setbeamertemplate{background canvas}{%
+    \begin{tikzpicture}[remember picture,overlay]
+      \draw[line width=#1]
+        ($(current page.north west) + (#2,-#2)$) rectangle
+        ($(current page.south east) + (-#2,#2)$);
+    \end{tikzpicture}%
+  }%
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\bfseries\color{deepblue},
+    emphstyle=\ttfamily\color{deepred},   % Custom highlighting style
+    stringstyle=\color{deepgreen},
+    numbers=left,
+    numberstyle=\small\color{halfgray},
+    rulesepcolor=\color{red!20!green!20!blue!20},
+    frame=shadowbox,
+}
+
+%\setlength{\parindent}{2em}
+\begin{document}
+
+\kaishu
+\begin{frame}
+    \titlepage
+
+\end{frame}
+
+\begin{frame}
+\tableofcontents[sectionstyle=show,subsectionstyle=show/shaded/hide,subsubsectionstyle=show/shaded/hide]
+\end{frame}
+
+\section{Background}
+\begin{frame}{MD simulation}
+    \begin{itemize}
+        \item \rred{Molecular Dynamics (MD) simulation} is a \textcolor{red}{computational technique} used to study the physical movements of atoms and molecules over time. 
+        It is widely applied in fields such as chemistry, biology, material science, and physics to gain insights into the structure, dynamics, and thermodynamics of molecular systems at an \textcolor{red}{atomic level}.
+        \item MD simulations are used to study:
+        \begin{enumerate}
+            \item Protein folding and conformational changes;
+            \item Chemical reactions and biomolecular interactions;
+            \item Phase transitions in materials;
+            \item Diffusion and transport properties;
+            \item Free energy calculations.
+        \end{enumerate}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Transition path theory}
+    \begin{itemize}
+        \item One of the most fundamental problems is to study the transition from a reactant to a product.
+        \item \rred{Transition Path Theory (TPT)} \cite{vanden2010transition} is a \rred{mathematical framework} for analyzing the dynamics of rare events, 
+        particularly transitions between two metastable states $A$ and $B$ in complex systems.
+        \item Using this powerful tool, we can describe the transition rate and reaction rate between metastablestates, reactive current and reactive density of the system.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Committor fuction}
+    \begin{itemize}
+        \item The central concept of TPT is the \rred{committor function}. 
+        It is the probability that a system at $z$ will reach state $B$ before returning to state $A$, i.e.
+        \begin{equation*}
+            q(z) = \mathbb{P}(\tau_{B}<\tau_{A}|Z_0 = z)
+        \end{equation*}
+        where $A,B$ is two subset of the phase space $\Omega$, and $\tau_A$ $\tau_B$ is the hitting time of $Z_t$ starting from $z$
+        \begin{equation*}
+            \tau_A = \inf_t\{t\geq0: Z_t \in A\}, \ \tau_B = \inf_t\{t\geq0: Z_t \in B\}
+        \end{equation*}
+    \end{itemize}
+    
+\end{frame}
+
+
+
+
+\begin{frame}{Committor function}
+    \begin{itemize}
+        \item Many kinetic quantities reduce to expressions involving q. Taking overdamped langevin dynamics as an example,
+        we can give the expressions of the quantities to which we are concerned in the transition:
+        \begin{enumerate}
+            \item Reactive density: $\mu_{R} \propto q (1-q)\mu$
+            \item Reactive current: $J_R =\beta^{-1} \mu \nabla_x q$ 
+            \item Transition rate: $\nu_R = \int \Vert \nabla_x q \Vert^2 \mu$
+            \item Reaction rate: $\kappa_{A,B} = \frac{\nu_R}{\rho_A}$
+        \end{enumerate}
+        where $\mu \propto e^{-\beta U}$ is the invariant mearsure, and $\rho_A = \int (1-q(x))\mu(x)dx$.
+        \item Therefore it is of great importance to get good estimation of committor function.
+    \end{itemize}
+\end{frame}
+
+% 内容从这里开始
+
+\begin{frame}{Committor analysis}
+\begin{itemize}
+    \item Committor analysis is the most straightforward way to estimate committor functions. 
+    \item In the transition path sampling literature \cite{Christoph2002,Jung2023,Dellago2006}, a \rred{Monte Carlo scheme} is used to 
+     estimate the probability for given points reaching state $B$ before state $A$ 
+     \begin{equation*}
+        q(z) \approx \frac{1}{N} \sum_{n=1}^N \mathbbm{1}(\tau_B(Z^n)<\tau_A(Z^n))
+     \end{equation*}
+     where $Z^n$ is the n-th stochastic process starting from $x$ and $\mathbbm{1}$ is the indicator function.
+    \item This method has extremely computational cost because for each point hundreds of simulations should be done, which is 
+     unaffordable for complex systems. 
+\end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Backward Kolmogorov equation}
+\begin{itemize}
+    \item An alternative method is based on the fact that committor function satisfies the Backward Kolmogorov equation.
+    \item  Consider a stochastic difference equation,
+    $$dZ_t = b(Z_t)dt+\sigma(Z_t)dW_t$$
+    where $Z_t \in \Omega\subset \mathbb{R}^d$ is the state of the system 
+    at time t, $b: \ \Omega  \to \mathcal{R}^d$ is the 
+    drift function, 
+    $\sigma : \ \Omega  \to \mathcal{R}^{d \times d}$ 
+    is the diffusion function, $W_t$ is the Wiener process 
+    in $\mathbb{R}^d$ space.
+    \item  Committor function is the solution for the \rred{following PDE}
+    $$\left\{\begin{aligned}
+        &\mathcal{L}q = 0\\
+        & q|_{\partial A} = 0\ ,\ \ \ q|_{\partial B} = 1
+    \end{aligned}\right.$$
+    where $\mathcal{L}$ is the infinitesimal generator of SDE,
+    $$\mathcal{L} f = b(z) \cdot \nabla f + \frac{1}{2} \sigma(z)\sigma^T(z):\nabla^2f$$
+    
+\end{itemize}
+    
+\end{frame}
+
+
+
+
+
+
+\begin{frame}{Deep Ritz Method}
+\begin{itemize}
+    \item Many works \cite{khoo2019solving,lilinren2019,Kranthi2022,lin2024deep,Kang2024,Trizio2025} use machine learning method to solve the problem. However, most of them consider the \rred{overdamped-langevin dynamics}, 
+    $$dX_t = - \nabla U(X_t)dt+\sqrt{2k_B T}dW_t$$
+    \item In this case, committor function $q$ satisfies a variational form
+    $$q = \operatorname*{argmin}\limits_{f:f|_{\p A}=0,f|_{\p B}=1} \mathbb{E}_{x \sim \mu}(\Vert \nabla_x f(x)\Vert^2)$$
+    where $\mu(x) = \frac{1}{Z}e^{-U(x)/\kbt}$ is the invariant distribution of the system.
+\end{itemize}
+    
+\end{frame}
+
+
+\begin{frame}{Deep Ritz Method}
+\begin{itemize}
+    \item With the variational form, we can solve the PDE using Deep Ritz Method. Parameterized committor funciton with neural network $q_\theta$,
+        the loss function is given as 
+        $$L[q_\theta] =\mathbb{E}_{x \sim \mu}(\Vert \nabla_x q_\theta \Vert^2) + \lambda_b L_b[q_\theta] $$ 
+        where $L_b$ is the penalty term of boundary condition
+        $$L_b = \sum_{x_i \in \p A} (q_\theta(x_i) -0)^2 + \sum_{x_j \in \p B} (q_\theta(x_j) -1)^2$$
+\end{itemize}
+    
+\end{frame}
+
+
+
+\begin{frame}{Deep Ritz Method}
+\begin{itemize}
+    \item This variational form needs to calculate the expectation over \rred{invariant measure} $\mu$. 
+    However it is challenging for complex systems to get the samples of invariant measure due to the \rred{energy barrier and entropic barrier}, 
+    resulting in bad estimation of the loss function.
+    \item Besides, the invariant distribution $\mu(x)$ has \rred{little overlap} with regions where $\Vert \nabla_x q_\theta \Vert$ is large, Monte Carlo
+        estimation would have high variance.
+    \item \rred{Enhanced sampling techniques} are used to deal with these issues. \cite{lin2024deep} uses metadynamics to enhance the samples in the transition regions
+          . \cite{Kang2024} utilizes a biased potential $V_{bias} = -\frac{1}{\beta}\log \Vert \nabla_x q_\theta \Vert^2$ and designs an iterative scheme for solving committor.
+    
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Deep Ritz Method}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.9\linewidth]{pic/q0.png}
+        \caption{An example of committor function}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Comments}
+\begin{itemize}
+    \item The study of committor function in \rred{overdamped-langevin dynamics} is well-developed. However study of committor function in \rred{underdamped-langevin dynamics} is still unexplored.
+    \item Overdamped-langevin dynamics is limit of underdamped-langevin dynamics with infinite friction coefficient. However there are still many differences between the two dynamic in following aspects:
+    \begin{enumerate}
+        \item Entropy production rate;
+        \item Transition rate between metastable states;
+        \item Thermodynamic uncertainty relation.
+    \end{enumerate}
+    \item We wish to develop effective algorithm for solving committor function in underdamped case and find out if there is any difference with overdamped case.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Summary}
+\begin{itemize}
+    \item In the following, we consider the underdamped-langevin dynamics
+    $$ \left\{\begin{aligned}
+        & dX_t = V_tdt \\
+        & d V_t = -\nabla U(X_t)dt - \gamma V_t dt + \sqrt{2\gamma \kbt}dW_t
+    \end{aligned}\right. $$
+    where $X_t,V_t \in \mathbb{R}^N$ is the position and velocity at time t, $U:R^N \to R$ is the potential function, $\gamma \in R$ is the friction coefficient and $\kbt$ is temperature times the Boltzmann constant. The total dimension of the system $d=2N$.
+    \item The variational form of $q$ does not exist in this case. We \rred{cannot}  \rred{use Deep Ritz method} as prior works.
+    \item If we use \rred{pinn} to solve the PDE straightforwardly, the isosurface $\{q\approx 0.5\}$ might not lay near the saddle point with highest energy barrier, but \rred{saddle points with lower barrier}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Summary}
+    \begin{itemize}
+        \item We want to find a \rred{ML method} to solve the problem efficiently. 
+        \item Inspired by the prior works, we still want to \rred{optimize a variational form} to solve the equation.
+        \item We hope that the algorithm does not use the samples based on invariant measures $\mu$. In this way we could overcome \rred{the issue of timescale} by utilizing enhanced sampling methods.
+    \end{itemize}
+\end{frame}
+
+\section{Iterative form for underdamped langevin}
+
+\begin{frame}{Backward Kolmogorov equation}
+\begin{itemize}
+    \item The Backward Kolmogorov equation in underdamped langevin dynamics is given by
+    $$\mathcal{L}q = -v\cdot \nabla_xq - \nabla_x U\cdot \nabla_v q + \gamma(-v\cdot\nabla_v q + \kbt \Delta_v q) = 0$$
+    \item Let 
+    $$\AAA q = -v\cdot \nabla_xq - \nabla_x U\cdot \nabla_v q$$
+    $$\SSS q = -v\cdot\nabla_v q + \kbt \Delta_v q$$
+    We have a decomposition of $\mathcal{L}$
+    $$\mathcal{L} = \AAA + \gamma \SSS$$
+    \item Therefore we can design an iterative form
+    $$ \gamma\SSS q^{k+1} = - \AAA q^{k} $$
+    
+\end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Decomposition of $\mathcal{L}$}
+\begin{itemize}
+    \item We use an iterative scheme
+    $$ \KKK q^{k+1} = \KKK q^{k} + \LLL q^{k} $$
+    where $\KKK$ should be desighed to be a self-adjoint positive-definite operator under some measure. 
+    \item If the function $q^{k}$ converges when $k \to \infty$, the iteration above results into 
+    $$ \LLL q^{\infty} = 0$$
+    \item The iterative scheme could also be derived from time evolution equation 
+    \begin{equation*}
+        \p_t q(x,v,t) = \KKK^{-1}\LLL q(x,v,t)
+    \end{equation*}
+\end{itemize}
+\end{frame}
+
+% \begin{frame}{Time evolution equation}
+%    \begin{itemize}
+%        \item To get more rational iterative forms, we consider the following time evolution equation 
+%        $$\p_t \tilde{q} = \KKK^{-1}\LLL \tilde{q}$$
+%        where $\KKK$ is a positive definite operator associated with an undetermined measure $\mu_\KKK$ . If this solution $\tilde{q}$ converges when $t \to \infty$, when the limit of $\tilde{q}$ satisfies the Backward Kolmogorov equation.
+%        \item Note that when $\KKK = \mathcal{I}$ the identity operator, $\tilde{q}$ is the time dependent committor function.
+%        \item With the time evolution equation, we have the iterative scheme (with timestep $\Delta t =1$)
+%        $$ \KKK(q^{k+1}-q^{k}) = \LLL q^{k}$$
+%    \end{itemize}
+    
+%\end{frame}
+
+\begin{frame}{Variational form of subproblem}
+    \begin{itemize}
+        \item In this study, we consider $\KKK$ with three conponents:
+        $$ \KKK = \lambda_\mathcal{I} \mathcal{I} -\gamma\SSS - \lambda_{x} \KKK_x  $$
+        where 
+        $$ \KKK_x q = - \nabla_x \tilde{U}(x) \cdot \nabla_x q + \kbt \Delta_x q $$
+         $ \tilde{U}:\mathbb{R}^N \to \mathbb{R}$ is an arbitrary potential function, $\mathcal{I}$ is the identity operator and $\SSS$ has defined above.
+         \item With this definition, $\KKK$ is positive definite under measure 
+         $$\mu_\KKK \propto e^{-(\tilde{U}(x)+\frac{1}{2}|v|^2)/\kbt}$$
+         \item One key point is that $\tilde{U}$ is not necessary to  be $U$, the potential of system. We do not need to get the samples from the invariant mearsure.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Variational form of subproblem}
+    \begin{itemize}
+        \item Take test function $$f(x,v) \in \mathcal{V} = \{f\in H^1_{\mu_\KKK}: f|_{\p A} = f|_{\p B}=0\}$$
+        We calculate 
+        $$
+        \begin{aligned}
+            \langle \KKK q^{k+1},f \rangle_{\mu_\KKK}
+            &=\lambda_{\mathcal{I}}\langle  q^{k+1},f \rangle_{\mu_\KKK}  \\
+            &\ \ \  +\kbt\gamma\langle  \nabla_vq^{k+1},\nabla_vf \rangle_{\mu_\KKK}\\
+            &\ \ \ +\kbt\lambda_{x}\langle  \nabla_xq^{k+1},\nabla_xf \rangle_{\mu_\KKK}\\
+            &:= B_\KKK(q^{k+1},f)
+        \end{aligned}$$
+        and 
+        $$
+        \begin{aligned}
+            \langle \LLL q^{k},f \rangle_{\mu_\KKK}
+            &=\langle  \AAA q^{k},f \rangle_{\mu_\KKK}             -\gamma\kbt\langle  \nabla_v q^{k},\nabla_v f \rangle_{\mu_\KKK}\\
+            &:= B_\LLL(q^k,f)
+        \end{aligned}
+        $$
+        \item We use neural network to parameterize $q^{k+1}$ and incorporate penalty terms to ensure the boundary condition. 
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Variational form of subproblem}
+    \begin{itemize}
+        \item From the calculation above, we get the variational form of subproblem
+        $$\begin{aligned}
+            &\langle \KKK q^{k+1}_\theta - (\KKK+\LLL)q^{k},f \rangle_{\mu_\KKK} =0\text{  for all } f\in \mathcal{V}\\
+            \Leftrightarrow& q^{k+1}_\theta = \arg\min_{q_\theta} \frac{1}{2}B_{\KKK}(q_\theta,q_\theta) \\
+            &\ \ \ \ \ \ \ \ \ -B_\KKK(q^{k},q_\theta)-B_{\LLL}(q^{k},q_\theta) \\
+            &\ \ \ \ \ \ \ s.t. \ q_\theta|_{\p A} =0,\ q_\theta|_{\p B} = 1
+        \end{aligned}$$
+        \item To solve this subproblem, we add penalty term to enforce the boundary condition.
+            $$L_b = \sum_{x \in A}(q-0)^2 +\sum_{x \in B}(q-1)^2$$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Comments}
+    \begin{itemize}
+        \item The greatest advantage is that this method does not require sampling the invariant measure. We can sample systems with low barrier to solve the committor.
+        \item The operator $\KKK$ can be considered as a preconditioning technique. In this way we can refine the property of the operator $\LLL$ and accelerate convergence.
+        \item For the strategy of choosing $\tilde{U}$, we suggest $\tilde{U}$ should have overlap with transition region.
+    \end{itemize}
+    
+\end{frame}
+
+\section{Numerical examples}
+
+\begin{frame}{1d double well potential}
+    \begin{itemize}
+        \item Consider $$U(x) = U_0(x_1) + 0.3\sum_{i=2}^N x_i^2$$
+        where $U_0(x_1) = (x_1^2-1)^2$. Here $A = \{x_1 < -1\}$ and $B = \{x_1 > 1\}$.
+    \end{itemize}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.4\linewidth]{pic/potential.png}
+        \caption{1d double well potential}
+        \label{fig:enter-label}
+    \end{figure}
+\end{frame}
+\begin{frame}{1d double well potential}
+    \begin{columns}[c]  %开始进入分栏环境，居中设置
+    \column{13cm}  
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.48\linewidth]{pic/nn_kbt.1_gamma_.2.png}
+        \includegraphics[width=0.48\linewidth]{pic/nn_kbt.1_gamma_.2_res.png}
+        \caption{Committor function when $\kbt = 0.1, \gamma = 0.2$. Left: numerical solution $q_{\theta} = q_{\theta}(x,v)$. Right: The error $E = q_{\theta} - q_{ref}$. }
+        \label{fig:enter-label}
+    \end{figure}
+    \end{columns}  %分栏环境结束
+    
+\end{frame}
+
+\begin{frame}{1d double well potential}
+    \begin{columns}[c]  %开始进入分栏环境，居中设置
+    \column{13cm}  
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.48\linewidth]{pic/nn_kbt.1_gamma_25.png}
+        \includegraphics[width=0.48\linewidth]{pic/nn_kbt.1_gamma_25_res.png}
+        \caption{Committor function when $\kbt = 0.1, \gamma = 25$. Left: numerical solution $q_{\theta} = q_{\theta}(x,v)$. Right: The error $E = q_{\theta} - q_{ref}$.}
+        \label{fig:enter-label}
+    \end{figure}
+    \end{columns}  %分栏环境结束
+    
+\end{frame}
+
+
+\begin{frame}{1d double well potential}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/nn_kbt.1_gamma_.2_slice_0.png}
+        \caption{Slice at $v = 0$ when $\kbt = 0.1, \gamma = 0.2$}
+        \label{fig:enter-label}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{1d double well potential}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/rates_1d.png}
+        \caption{Rate estimation for 1d double well potential. 
+        Orange line calculates $I_0 = \gamma^{-1}\kbt \langle \Vert\nabla_x q_0\Vert \rangle_{\mu}$, while blue line calculates $I = \gamma \kbt\langle \Vert\nabla_v q\Vert^2 \rangle_{\mu}$. }
+        \label{fig:enter-label}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{1d double well potential}
+    \begin{table}
+  \centering
+  \caption{Results for 1d double well potential.Here $E = q_\theta - q_{ref}$.}
+  \label{tab:1d_E}
+  \begin{tabular}{@{} l l l l l @{}}
+    \toprule
+    $\gamma$ & Method & $\Vert E \Vert_{L_2(\mu)}$ & $\Vert E \Vert_{L_1(\mu)}$ & $\Vert E \Vert_{L_{\infty}(\mu)}$ \\
+    \midrule
+    0.2 & Ours & \textbf{2.91e-4} & \textbf{2.85e-6} & \textbf{1.60e-1} \\
+         & Pinn & 2.82e-2 & 2.52e-2 & 7.39e-1 \\
+    \addlinespace
+    1   & Ours & \textbf{2.65e-4} & \textbf{2.62e-5} & \textbf{7.94e-2} \\
+         & Pinn & 3.89e-2 & 1.52e-2 & 9.96e-1 \\
+    \addlinespace
+    5   & Ours & \textbf{5.74e-4} & \textbf{2.32e-4} & \textbf{6.04e-2} \\
+         & Pinn & 6.13e-4 & 2.38e-4 & 6.91e-2 \\
+    \addlinespace
+    25  & Ours & \textbf{8.60e-4} & 4.44e-4 & \textbf{5.31e-2} \\
+         & Pinn & 9.35e-4 & \textbf{4.04e-4} & 1.86e-1 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{frame}
+
+\begin{frame}{1d double well potential}
+    \begin{table}
+  \centering
+  \caption{Results for 1d double well potential. }
+  \label{tab:1d_Lq}
+  \begin{tabular}{@{} l l l l l @{}}
+    \toprule
+    $\gamma$ & Method & $\Vert \mathcal{L} q_\theta \Vert_{L_2(\mu)}$ & $\Vert \mathcal{L} q_\theta \Vert_{L_1(\mu)}$ & $\Vert \mathcal{L} q_\theta \Vert_{L_{\infty}(\mu)}$ \\
+    \midrule
+    0.2 & Ours & \textbf{2.47e-3} & \textbf{1.85e-5} & 1.39 \\
+         & Pinn & 3.45e-2 & 2.53e-2 & \textbf{7.39e-1} \\
+    \addlinespace
+    1   & Ours & \textbf{1.19e-3} & \textbf{8.25e-5} & \textbf{4.10e-1} \\
+         & Pinn & 5.26e-2 & 1.85e-2 & 9.96e-1 \\
+    \addlinespace
+    5   & Ours & \textbf{5.75e-4} & \textbf{1.68e-4} & \textbf{6.04e-2} \\
+         & Pinn & 6.03e-4 & 1.76e-4 & 6.91e-2 \\
+    \addlinespace
+    25  & Ours & \textbf{3.12e-4} & 1.33e-4 & \textbf{5.31e-2} \\
+         & Pinn & 3.30e-4 & \textbf{1.18e-4} & 1.86e-1 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+\end{frame}
+
+
+\begin{frame}{Muller potential}
+\begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/muller_potential.png}
+        \caption{Muller potential}
+        \label{fig:enter-label}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Artificial right side test: $\kbt = 5,\gamma = 5$}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/artificial_test_kbt5gamma5.png}
+        \caption{Let $\LLL q = f$, where $f = \LLL q_{ref}$ and $q_{ref}$ an approximaton of committor function in close form. The plot shows $|q_\theta - q_{ref}|$. }
+    \end{figure}
+\end{frame}
+
+
+
+\begin{frame}{Muller potential: $kbt = 5,\gamma = 5$}
+\begin{columns}[c]  %开始进入分栏环境，居中设置
+    \column{12.8cm}  
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.48\linewidth]{pic/ave_muller_potential.png}
+        \includegraphics[width=0.48\linewidth]{pic/ave_muller_potential_pinn.png}
+        \caption{$\langle q(x,v)\rangle_{\mu_v}$ :committor function averaged over $v$. Left: ours, right: Pinns.}
+        \label{fig:enter-label}
+    \end{figure}
+    \end{columns}  %分栏环境结束
+\end{frame}
+
+\begin{frame}{Muller potential: $kbt = 5,\gamma = 5$}
+\begin{columns}[c]  %开始进入分栏环境，居中设置
+    \column{12.8cm}  
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.48\linewidth]{pic/committor_saddle_NN.png}
+        \includegraphics[width=0.48\linewidth]{pic/committor_saddle_PINN.png}
+        \caption{committor function at saddle point. Left: ours, right: Pinns.}
+        \label{fig:enter-label}
+    \end{figure}
+    \end{columns}  %分栏环境结束
+\end{frame}
+
+
+
+\begin{frame}{muller potential: $\kbt=5,\gamma = 5$}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{pic/muller_NN_kbt5gamma5.png}
+    \caption{NN committor function at different slices of v.}
+\end{figure}
+    
+\end{frame}
+
+
+\begin{frame}{muller potential with PINN: $\kbt=5,\gamma = 5$}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{pic/muller_pinn_kbt5gamma5.png}
+    \caption{Pinn model committor function at different slices of v.}
+\end{figure}
+\end{frame}
+
+
+
+\begin{frame}{muller potential: $\kbt=5,\gamma = 5$}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{pic/rates_muller.png}
+    \caption{Rate estimation from different methods. Green line calculates $I_0 = \gamma^{-1}\kbt \langle \Vert\nabla_x q_0\Vert \rangle_{\mu}$, while blue line calculates $I = \gamma \kbt\langle \Vert\nabla_v q\Vert^2 \rangle_{\mu}$.}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Muller potential}
+    \begin{table}[ht]
+\centering
+\caption{Results for Muller potential. Here $E = q_\theta - q_{ref}$ is the difference between the numerical result and the reference solution.}
+\begin{tabular}{@{} l l l l l @{}}
+\toprule
+$\gamma$ & Method & $\dfrac{\|E\|_{L_2(\mu)}}{\|q_{\mathrm{ref}}\|_{L_2(\mu)}}$ & $\dfrac{\|E\|_{L_1(\mu)}}{\|q_{\mathrm{ref}}\|_{L_1(\mu)}}$ & $\|E\|_{L_{\infty}(\mu)}$ \\
+\midrule
+1  & Ours  & 6.82e-04 & 1.49e-06 & 1.00e+00 \\
+   & PINNs & 1.98e-02 & 3.54e-02 & 1.00e+00 \\
+5  & Ours  & 1.16e-03 & 8.64e-06 & 1.00e+00 \\
+   & PINNs & 4.72e-02 & 1.19e+00 & 9.40e-01 \\
+25 & Ours  & 7.30e-04 & 8.50e-05 & 7.15e-01 \\
+   & PINNs & 8.04e-02 & 3.84e-01 & 9.68e-01 \\
+\bottomrule
+\end{tabular}
+
+\label{tab:muller_q_errors}
+\end{table}
+    
+\end{frame}
+
+
+
+
+
+\begin{frame}{Alanine Dipeptide}
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{pic/ala2.png}
+    \caption{Alanine Dipeptide}
+\end{figure}
+    
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{pic/q0.png}
+        \caption{Overdamped dynamics committor function:$q_0$}
+    \end{figure}
+\end{frame}
+
+
+\begin{frame}{Alanine Dipeptide: $T = 300K$, $\gamma = 5$}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/ala2_gamma5.png}
+        \caption{Underdamped langevin dynamics committor function:$q = q(x,v)$ with $\gamma = 5$}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide: $T = 300K$, $\gamma = 5$}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/shooting_results_gamma5_1.png}
+        \caption{Shooting results with $\gamma = 5$. We take 100 points in the region $|q-0.5|<0.01$ and run 100 simulations each point to do shooting test.}
+    \end{figure}
+\end{frame}
+
+\begin{frame}{Alanine Dipeptide: $T = 300K$, $\gamma = 25$}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.7\linewidth]{pic/shooting_results_gamma25_1.png}
+        \caption{Shooting results with $\gamma = 25$. We take 100 points in the region $|q-0.5|<0.01$ and run 100 simulations each point to do shooting test.}
+    \end{figure}
+\end{frame}
+
+\section{Conclusion}
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item We develop an iterative method to solve the committor function in underdamped-langevin dynamics.
+        \item The method does not require sampling from invariant measure, which makes it possible to utilize enhanced sampling techniques to overcome timescale issues.
+        \item Numerical examples on 1d double well potential, muller potential and alanine dipeptide demonstrate the effectiveness of the method.
+        \item For future work, firstly we want to use committor function as collective variables to enhance sampling of complex systems. 
+        Secondly, committor function is for the transition for only two metastable states. We want to extend the method to multi-state transitions. This is also related to the sellection of collective variables.
+    \end{itemize}
+    
+\end{frame}
+
+\section*{Refenrences}
+
+\begin{frame}[allowframebreaks]{References}
+    \footnotesize
+\bibliographystyle{apalike}
+\bibliography{ref} % no .bib extension
+\end{frame}
+
+\end{document}
