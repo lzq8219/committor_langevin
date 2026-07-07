@@ -1,5 +1,0 @@
-nstep                   400000
-tstep                   0.005
-temperature             1.
-plumed_input            plumed.dat
-dimension               2
