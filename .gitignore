@@ -211,6 +211,8 @@ step*
 **/*.png
 **/**/*.png
 *.png
+*.svg
+*.pdf
 constrained.zip
 
 
